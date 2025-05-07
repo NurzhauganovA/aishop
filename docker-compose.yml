@@ -1,102 +1,100 @@
 services:
-    db:
-        image: postgres:13
-        volumes:
-            - postgres_data:/var/lib/postgresql/data/
-        env_file:
-            - ./.env
-        environment:
-            - POSTGRES_PASSWORD=${DB_PASSWORD}
-            - POSTGRES_USER=${DB_USER}
-            - POSTGRES_DB=${DB_NAME}
-        networks:
-            - marketplace_network
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_NAME}
+    networks:
+      - marketplace_network
 
-    redis:
-        image: redis:6.2
-        networks:
-            - marketplace_network
+  redis:
+    image: redis:6.2
+    networks:
+      - marketplace_network
 
-    web:
-        build: .
-        restart: always
-        depends_on:
-            - db
-            - redis
-        volumes:
-            - .:/app
-            - static_volume:/app/static
-            - media_volume:/app/media
-        env_file:
-            - ./.env
-        entrypoint: /app/docker/entrypoint.sh
-        networks:
-            - marketplace_network
+  web:
+    build: .
+    restart: always
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+      - static_volume:/app/static
+      - media_volume:/app/media
+    env_file:
+      - ./.env
+    entrypoint: /app/docker/entrypoint.sh
+    networks:
+      - marketplace_network
 
-    celery:
-        build: .
-        command: celery -A marketplace worker -l info
-        depends_on:
-            - db
-            - redis
-            - web
-        volumes:
-            - .:/app
-        env_file:
-            - ./.env
-        networks:
-            - marketplace_network
+  celery:
+    build: .
+    command: celery -A marketplace worker -l info
+    depends_on:
+      - db
+      - redis
+      - web
+    volumes:
+      - .:/app
+    env_file:
+      - ./.env
+    networks:
+      - marketplace_network
 
-    celery-beat:
-        build: .
-        command: celery -A marketplace beat -l info
-        depends_on:
-            - db
-            - redis
-            - web
-        volumes:
-            - .:/app
-        env_file:
-            - ./.env
-        networks:
-            - marketplace_network
+  celery-beat:
+    build: .
+    command: celery -A marketplace beat -l info
+    depends_on:
+      - db
+      - redis
+      - web
+    volumes:
+      - .:/app
+    env_file:
+      - ./.env
+    networks:
+      - marketplace_network
 
-    daphne:
-        restart: always
-        build: .
-        command: daphne -b 0.0.0.0 -p 8001 marketplace.asgi:application
-        volumes:
-            - .:/app
-            - static_volume:/app/static
-            - media_volume:/app/media
-        depends_on:
-            - db
-            - redis
-            - web
-        env_file:
-            - ./.env
-        networks:
-            - marketplace_network
+  daphne:
+    build: .
+    command: daphne -p 8000 marketplace.asgi:application
+    volumes:
+      - .:/app
+      - static_volume:/app/static
+      - media_volume:/app/media
+    depends_on:
+      - db
+      - redis
+      - web
+    env_file:
+      - ./.env
+    networks:
+      - marketplace_network
 
-    nginx:
-        image: nginx:1.21
-        restart: always
-        ports:
-            - 80:80
-        volumes:
-            - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-            - static_volume:/static
-            - media_volume:/media
-        depends_on:
-            - web
-            - daphne
-        networks:
-            - marketplace_network
+  nginx:
+    image: nginx:1.21
+    ports:
+      - 80:80
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - static_volume:/static
+      - media_volume:/media
+    depends_on:
+      - web
+      - daphne
+    networks:
+      - marketplace_network
 
 networks:
-    marketplace_network:
+  marketplace_network:
 
 volumes:
-    postgres_data:
-    static_volume:
-    media_volume:
+  postgres_data:
+  static_volume:
+  media_volume:

@@ -7,4 +7,5 @@ urlpatterns = [
     path('search/', views.search_products, name='ai_search_products'),
     path('recommendations/', views.get_recommendations, name='ai_recommendations'),
     path('generate_description/', views.generate_description, name='ai_generate_description'),
+    path('send_message/', views.send_message, name='ai_send_message'),
 ]

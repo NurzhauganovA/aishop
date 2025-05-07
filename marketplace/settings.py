@@ -96,9 +96,14 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             'hosts': [('redis', 6379)],
+            'capacity': 1500,  # Increased capacity
+            'expiry': 10,  # Seconds until a message expires
         },
     },
 }
+
+DAPHNE_HOST = '0.0.0.0'
+DAPHNE_PORT = 8001
 
 # Настройки Celery
 CELERY_BROKER_URL = config('REDIS_URL')

@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Elements
+    // Элементы интерфейса
     const openAIChatBtn = document.getElementById('openAIChat');
     const closeAIChatBtn = document.getElementById('closeAIChat');
     const aiAssistantChat = document.getElementById('aiAssistantChat');
@@ -7,14 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const aiMessageInput = document.getElementById('aiMessageInput');
     const sendAIMessageBtn = document.getElementById('sendAIMessage');
 
-    // Conversation ID storage
+    // WebSocket соединение
+    let aiSocket = null;
     let conversationId = localStorage.getItem('aiConversationId');
 
-    // Function to open chat with AI
+    // Функция для открытия чата с ИИ
     function openAIChat() {
         aiAssistantChat.style.display = 'flex';
 
-        // If no conversation ID, create a new one
+        // Если нет ID диалога, создаем новый
         if (!conversationId) {
             fetch('/aisha/create_conversation/', {
                 method: 'POST',
@@ -28,142 +29,172 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'success') {
                     conversationId = data.conversation_id;
                     localStorage.setItem('aiConversationId', conversationId);
-                    loadConversationHistory();
+                    connectWebSocket();
                 } else {
-                    console.error('Error creating conversation:', data.message);
+                    console.error('Ошибка создания диалога:', data.message);
                 }
             })
             .catch(error => {
-                console.error('Request error:', error);
+                console.error('Ошибка запроса:', error);
             });
         } else {
-            // If conversation ID exists, load history
-            loadConversationHistory();
+            // Если ID диалога есть, загружаем историю
+            fetch(`/aisha/get_conversation_history/${conversationId}/`)
+            .then(response => {
+                if (!response.ok) {
+                    // Если диалог не найден, создаем новый
+                    localStorage.removeItem('aiConversationId');
+                    openAIChat();
+                    return null; // Важно вернуть null, чтобы следующий then не выполнялся
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.status === 'success') {
+                    // Очищаем историю сообщений
+                    aiChatMessages.innerHTML = '';
+
+                    // Добавляем сообщения из истории
+                    data.messages.forEach(msg => {
+                        const messageClass = msg.role === 'user' ? 'user-message' : 'ai-message';
+                        addMessageToChat(msg.content, messageClass);
+                    });
+
+                    // Прокручиваем до последнего сообщения
+                    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+
+                    // Подключаемся к WebSocket
+                    connectWebSocket();
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки истории:', error);
+                // При ошибке создаем новый диалог
+                localStorage.removeItem('aiConversationId');
+                openAIChat();
+            });
         }
     }
 
-    // Load conversation history
-    function loadConversationHistory() {
-        if (!conversationId) {
-            console.error('No conversation ID found');
+    // Подключение к WebSocket
+    function connectWebSocket() {
+        if (conversationId === null) {
+            console.error('ID диалога не найден');
             return;
         }
 
-        fetch(`/aisha/get_conversation_history/${conversationId}/`)
-        .then(response => {
-            if (!response.ok) {
-                // If conversation not found, create a new one
-                localStorage.removeItem('aiConversationId');
-                openAIChat();
-                return null;
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data && data.status === 'success') {
-                // Clear message history
-                aiChatMessages.innerHTML = '';
+        if (aiSocket) {
+            aiSocket.close();
+        }
 
-                // Add messages from history
-                data.messages.forEach(msg => {
-                    const messageClass = msg.role === 'user' ? 'user-message' : 'ai-message';
-                    addMessageToChat(msg.content, messageClass);
-                });
+        // Протокол зависит от текущего соединения
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = `${wsProtocol}${window.location.host}/ws/aisha/${conversationId}/`;
 
-                // Scroll to last message
-                aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-            }
-        })
-        .catch(error => {
-            console.error('Error loading history:', error);
-            // On error create a new conversation
-            localStorage.removeItem('aiConversationId');
-            openAIChat();
-        });
+        try {
+            aiSocket = new WebSocket(wsUrl);
+
+            aiSocket.onopen = function(e) {
+                console.log('WebSocket соединение установлено');
+                // Разблокируем кнопку отправки
+                sendAIMessageBtn.disabled = false;
+            };
+
+            aiSocket.onmessage = function(e) {
+                try {
+                    const data = JSON.parse(e.data);
+                    const messageClass = data.role === 'user' ? 'user-message' : 'ai-message';
+                    addMessageToChat(data.message, messageClass);
+
+                    // Прокручиваем до последнего сообщения
+                    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+                } catch (error) {
+                    console.error('Ошибка обработки сообщения:', error);
+                }
+            };
+
+            aiSocket.onclose = function(e) {
+                console.log('WebSocket соединение закрыто, код:', e.code, 'причина:', e.reason);
+                // Блокируем кнопку отправки
+                sendAIMessageBtn.disabled = true;
+
+                // Пытаемся переподключиться через 3 секунды
+                setTimeout(function() {
+                    if (aiAssistantChat.style.display !== 'none') {
+                        connectWebSocket();
+                    }
+                }, 3000);
+            };
+
+            aiSocket.onerror = function(e) {
+                console.error('WebSocket ошибка:', e);
+                // Блокируем кнопку отправки
+                sendAIMessageBtn.disabled = true;
+            };
+        } catch (error) {
+            console.error('Ошибка создания WebSocket:', error);
+        }
     }
 
-    // Function to close chat with AI
+    // Функция для закрытия чата с ИИ
     function closeAIChat() {
         aiAssistantChat.style.display = 'none';
+
+        // Закрываем WebSocket соединение
+        if (aiSocket) {
+            aiSocket.close();
+            aiSocket = null;
+        }
     }
 
-    // Function to send message
-    function sendAIMessage() {
-        const message = aiMessageInput.value.trim();
-        if (!message || !conversationId) return;
+    // Функция для отправки сообщения
+function sendAIMessage() {
+    const message = aiMessageInput.value.trim();
+    if (!message) return;
 
-        // Add user message to chat
-        addMessageToChat(message, 'user-message');
+    if (aiSocket && aiSocket.readyState === WebSocket.OPEN) {
+        try {
+            // Отображаем сообщение пользователя сразу
+            // addMessageToChat(message, 'user-message');
+            // Закомментируйте эту строку, так как сообщение будет добавлено после получения от сервера
 
-        // Clear input field
-        aiMessageInput.value = '';
+            // Отправка сообщения через WebSocket
+            aiSocket.send(JSON.stringify({
+                'message': message
+            }));
 
-        // Show loading indicator
-        const loadingMessage = document.createElement('div');
-        loadingMessage.className = 'message ai-message';
-        loadingMessage.innerHTML = '<div class="message-content">Думаю...</div>';
-        loadingMessage.id = 'ai-loading-message';
-        aiChatMessages.appendChild(loadingMessage);
+            // Очищаем поле ввода
+            aiMessageInput.value = '';
 
-        // Scroll to last message
-        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-
-        // Send message to server
-        fetch('/aisha/send_message/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                conversation_id: conversationId,
-                message: message
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Remove loading indicator
-            const loadingMessage = document.getElementById('ai-loading-message');
-            if (loadingMessage) {
-                loadingMessage.remove();
-            }
-
-            if (data.status === 'success') {
-                // Add AI response to chat
-                addMessageToChat(data.response, 'ai-message');
-
-                // Scroll to last message
-                aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+            // Прокручиваем до последнего сообщения
+            aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+        } catch (error) {
+            console.error('Ошибка отправки сообщения:', error);
+            alert('Не удалось отправить сообщение. Пожалуйста, обновите страницу и попробуйте снова.');
+        }
+    } else {
+        console.error('WebSocket не подключен, состояние:', aiSocket ? aiSocket.readyState : 'null');
+        // Пытаемся переподключиться
+        connectWebSocket();
+        setTimeout(function() {
+            if (aiSocket && aiSocket.readyState === WebSocket.OPEN) {
+                sendAIMessage();
             } else {
-                console.error('Error sending message:', data.message);
-                addMessageToChat('Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.', 'ai-message');
+                alert('Не удалось подключиться к серверу. Пожалуйста, обновите страницу и попробуйте снова.');
             }
-        })
-        .catch(error => {
-            console.error('Error sending message:', error);
-
-            // Remove loading indicator
-            const loadingMessage = document.getElementById('ai-loading-message');
-            if (loadingMessage) {
-                loadingMessage.remove();
-            }
-
-            addMessageToChat('Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.', 'ai-message');
-        });
+        }, 1000);
     }
+}
 
-    // Function to add message to chat
+    // Функция добавления сообщения в чат
     function addMessageToChat(message, messageClass) {
         const messageElement = document.createElement('div');
         messageElement.className = `message ${messageClass}`;
         messageElement.innerHTML = `<div class="message-content">${message}</div>`;
         aiChatMessages.appendChild(messageElement);
-
-        // Scroll to last message
-        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
     }
 
-    // Get CSRF token from cookies
+    // Получение CSRF-токена из cookies
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -179,24 +210,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return cookieValue;
     }
 
-    // Events
+    // События
     if (openAIChatBtn) {
-        openAIChatBtn.addEventListener('click', function() {
-            console.log("Open AI Chat button clicked");
-            openAIChat();
-        });
+        openAIChatBtn.addEventListener('click', openAIChat);
     }
 
     if (closeAIChatBtn) {
-        closeAIChatBtn.addEventListener('click', function() {
-            closeAIChat();
-        });
+        closeAIChatBtn.addEventListener('click', closeAIChat);
     }
 
     if (sendAIMessageBtn) {
-        sendAIMessageBtn.addEventListener('click', function() {
-            sendAIMessage();
-        });
+        sendAIMessageBtn.addEventListener('click', sendAIMessage);
     }
 
     if (aiMessageInput) {
@@ -207,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle chat form submission (if form exists)
+    // Добавляем обработчик для формы отправки (если вдруг форма есть)
     const chatForm = document.querySelector('#aiAssistantChat form');
     if (chatForm) {
         chatForm.addEventListener('submit', function(e) {
@@ -216,7 +240,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Random AI hints popup
+    // Периодически проверяем, не завершена ли сессия
+    setInterval(function() {
+        if (aiAssistantChat.style.display !== 'none' && aiSocket && aiSocket.readyState !== WebSocket.OPEN) {
+            connectWebSocket();
+        }
+    }, 5000);
+
+    // Случайные всплывающие подсказки от ИИ
     function showRandomAIHint() {
         if (aiAssistantChat.style.display === 'none' || aiAssistantChat.style.display === '') {
             const hints = [
@@ -227,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Хотите узнать о новинках?'
             ];
 
-            // Create hint popup
+            // Создаем всплывающую подсказку
             const hintElement = document.createElement('div');
             hintElement.className = 'ai-hint';
             hintElement.innerHTML = hints[Math.floor(Math.random() * hints.length)];
@@ -241,18 +272,18 @@ document.addEventListener('DOMContentLoaded', function() {
             hintElement.style.maxWidth = '250px';
             hintElement.style.cursor = 'pointer';
 
-            // Add hint to page
+            // Добавляем подсказку на страницу
             const aiWrapper = document.querySelector('.ai-assistant-wrapper');
             if (aiWrapper) {
                 aiWrapper.appendChild(hintElement);
 
-                // On hint click open chat
+                // По клику на подсказку открываем чат
                 hintElement.addEventListener('click', function() {
                     openAIChat();
                     hintElement.remove();
                 });
 
-                // Remove hint after 5 seconds
+                // Удаляем подсказку через 5 секунд
                 setTimeout(() => {
                     if (hintElement.parentNode) {
                         hintElement.remove();
@@ -262,6 +293,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Show random hint 30-60 seconds after page load
+    // Показываем случайную подсказку через 30-60 секунд после загрузки страницы
     setTimeout(showRandomAIHint, Math.random() * 30000 + 30000);
 });

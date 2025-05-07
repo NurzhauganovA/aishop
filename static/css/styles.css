@@ -410,3 +410,16 @@ main {
     align-items: center;
     cursor: pointer;
 }
+
+.chat-input button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
