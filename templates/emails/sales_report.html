@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Отчет о продажах за неделю</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            background-color: #3498db;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .footer {
+            background-color: #f2f2f2;
+            padding: 10px;
+            text-align: center;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Отчет о продажах за неделю</h1>
+        <p>{{ start_date }} - {{ end_date }}</p>
+    </div>
+    
+    <div class="content">
+        <p>Здравствуйте, {{ seller_name }}!</p>
+        
+        <p>Представляем вам еженедельный отчет о продажах в нашем маркетплейсе.</p>
+        
+        <h2>Общая статистика</h2>
+        <table>
+            <tr>
+                <th>Показатель</th>
+                <th>Значение</th>
+            </tr>
+            <tr>
+                <td>Всего заказов</td>
+                <td>{{ total_orders }}</td>
+            </tr>
+            <tr>
+                <td>Общая сумма</td>
+                <td>{{ total_revenue }} ₸</td>
+            </tr>
+            <tr>
+                <td>Завершенные заказы</td>
+                <td>{{ completed_orders }}</td>
+            </tr>
+            <tr>
+                <td>Новые заказы</td>
+                <td>{{ new_orders }}</td>
+            </tr>
+            <tr>
+                <td>В обработке</td>
+                <td>{{ processing_orders }}</td>
+            </tr>
+        </table>
+        
+        {% if top_products %}
+            <h2>Топ-5 товаров</h2>
+            <table>
+                <tr>
+                    <th>Название</th>
+                    <th>Продано</th>
+                    <th>Сумма</th>
+                </tr>
+                {% for product in top_products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.quantity_sold }}</td>
+                        <td>{{ product.revenue }} ₸</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+        
+        <p>Для получения более подробной информации посетите <a href="{{ dashboard_url }}">панель продавца</a>.</p>
+        
+        <p>С уважением,<br>Команда Маркетплейса</p>
+    </div>
+    
+    <div class="footer">
+        <p>Это автоматическое сообщение, пожалуйста, не отвечайте на него.</p>
+        <p>&copy; 2025 Маркетплейс с ИИ. Все права защищены.</p>
+    </div>
+</body>
+</html>

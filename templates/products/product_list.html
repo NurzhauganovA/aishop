@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+
+{% block title %}Каталог товаров | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Фильтры и сортировка -->
+        <div class="col-md-3 mb-4">
+            <div class="card filters-sidebar">
+                <div class="card-header">
+                    <h5 class="mb-0">Фильтры</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'product_list' %}">
+                        <!-- Поиск -->
+                        {% if search_query %}
+                            <input type="hidden" name="q" value="{{ search_query }}">
+                        {% endif %}
+                        
+                        <!-- Категории -->
+                        <div class="mb-3">
+                            <h6>Категории</h6>
+                            <div class="list-group">
+                                <a href="{% url 'product_list' %}" class="list-group-item list-group-item-action {% if not category_slug %}active{% endif %}">
+                                    Все категории
+                                </a>
+                                {% for cat in categories %}
+                                    {% if not cat.parent %}
+                                        <a href="{% url 'product_list' %}?category={{ cat.slug }}" class="list-group-item list-group-item-action fw-bold {% if category_slug == cat.slug %}active{% endif %}">
+                                            {{ cat.name }}
+                                        </a>
+                                        
+                                        {% for child in categories %}
+                                            {% if child.parent == cat %}
+                                                <a href="{% url 'product_list' %}?category={{ child.slug }}" class="list-group-item list-group-item-action ps-4 {% if category_slug == child.slug %}active{% endif %}">
+                                                    <i class="bi bi-chevron-right me-1 small"></i>{{ child.name }}
+                                                </a>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Цена -->
+                        <div class="mb-3">
+                            <h6>Цена</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="mb-3">
+                                        <label for="min_price" class="form-label">От</label>
+                                        <input type="number" class="form-control" id="min_price" name="min_price" value="{{ request.GET.min_price }}" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="mb-3">
+                                        <label for="max_price" class="form-label">До</label>
+                                        <input type="number" class="form-control" id="max_price" name="max_price" value="{{ request.GET.max_price }}" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">Применить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Список товаров -->
+        <div class="col-md-9">
+            <!-- Заголовок и сортировка -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    {% if search_query %}
+                        Результаты поиска: "{{ search_query }}"
+                    {% elif category_slug %}
+                        {{ categories|dictsort:"id"|first }}
+                    {% else %}
+                        Все товары
+                    {% endif %}
+                </h1>
+                
+                <div class="d-flex align-items-center">
+                    <span class="me-2">Сортировать:</span>
+                    <select class="form-select" id="sort_by" name="sort_by" onchange="window.location.href = updateQueryStringParameter(window.location.href, 'sort_by', this.value)">
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Новинки</option>
+                        <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Сначала дешевые</option>
+                        <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Сначала дорогие</option>
+                        <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>По рейтингу</option>
+                        <option value="popularity" {% if sort_by == 'popularity' %}selected{% endif %}>По популярности</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Товары -->
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for product in products %}
+                    <div class="col">
+                        <div class="card h-100 product-card">
+                            {% if product.images.exists %}
+                                <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                            {% else %}
+                                <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
+                            {% endif %}
+                            
+                            <div class="card-body">
+                                <h5 class="card-title">{{ product.name }}</h5>
+                                <div class="rating mb-2">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= product.rating %}
+                                            <i class="bi bi-star-fill"></i>
+                                        {% elif forloop.counter <= product.rating|add:"0.5" %}
+                                            <i class="bi bi-star-half"></i>
+                                        {% else %}
+                                            <i class="bi bi-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                    <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
+                                </div>
+                                <p class="product-price">{{ product.price }} ₸</p>
+                                {% if product.old_price %}
+                                    <p>
+                                        <span class="product-old-price">{{ product.old_price }} ₸</span>
+                                        <span class="product-discount">-{{ product.discount_percentage }}%</span>
+                                    </p>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer d-flex justify-content-between">
+                                <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary">Подробнее</a>
+                                <form action="{% url 'add_to_cart' %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-cart-plus"></i>
+                                    </button>
+                                </form>
+                                <form action="{% url 'add_to_wishlist' %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger wishlist-button" data-product-id="{{ product.id }}" data-in-wishlist="{% if product in request.user.wishlist.products.all %}true{% else %}false{% endif %}">
+                                        {% if product in request.user.wishlist.products.all %}
+                                            <i class="bi bi-heart-fill"></i>
+                                        {% else %}
+                                            <i class="bi bi-heart"></i>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-search" style="font-size: 3rem;"></i>
+                        <h4 class="mt-3">Товары не найдены</h4>
+                        <p>Попробуйте изменить параметры поиска или фильтры</p>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Пагинация -->
+            {% if products.has_other_pages %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if products.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if category_slug %}&category={{ category_slug }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if request.GET.min_price %}&min_price={{ request.GET.min_price }}{% endif %}{% if request.GET.max_price %}&max_price={{ request.GET.max_price }}{% endif %}" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_slug %}&category={{ category_slug }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if request.GET.min_price %}&min_price={{ request.GET.min_price }}{% endif %}{% if request.GET.max_price %}&max_price={{ request.GET.max_price }}{% endif %}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">&laquo;&laquo;</span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">&laquo;</span>
+                            </li>
+                        {% endif %}
+                        
+                        {% for i in products.paginator.page_range %}
+                            {% if i == products.number %}
+                                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                            {% elif i > products.number|add:'-3' and i < products.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ i }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_slug %}&category={{ category_slug }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if request.GET.min_price %}&min_price={{ request.GET.min_price }}{% endif %}{% if request.GET.max_price %}&max_price={{ request.GET.max_price }}{% endif %}">{{ i }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if products.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_slug %}&category={{ category_slug }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if request.GET.min_price %}&min_price={{ request.GET.min_price }}{% endif %}{% if request.GET.max_price %}&max_price={{ request.GET.max_price }}{% endif %}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_slug %}&category={{ category_slug }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if request.GET.min_price %}&min_price={{ request.GET.min_price }}{% endif %}{% if request.GET.max_price %}&max_price={{ request.GET.max_price }}{% endif %}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">&raquo;</span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">&raquo;&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Функция для обновления параметров URL
+    function updateQueryStringParameter(uri, key, value) {
+        var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+        
+        if (uri.match(re)) {
+            return uri.replace(re, '$1' + key + "=" + value + '$2');
+        } else {
+            return uri + separator + key + "=" + value;
+        }
+    }
+</script>
+{% endblock %}
+
+{% endblock %}

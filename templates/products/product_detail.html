@@ -1,0 +1,447 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'product_list' %}?category={{ product.category.slug }}">{{ product.category.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <!-- Галерея изображений -->
+        <div class="col-md-6 mb-4">
+            <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    {% for image in product.images.all %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            <img src="{{ image.image.url }}" class="d-block w-100 product-detail-image" alt="{{ product.name }}">
+                        </div>
+                    {% empty %}
+                        <div class="carousel-item active">
+                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="d-block w-100 product-detail-image" alt="Изображение отсутствует">
+                        </div>
+                    {% endfor %}
+                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Предыдущий</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Следующий</span>
+                </button>
+            </div>
+            
+            <!-- Миниатюры -->
+            <div class="row mt-3">
+                {% for image in product.images.all %}
+                    <div class="col-3 mb-3">
+                        <img src="{{ image.image.url }}" class="img-thumbnail product-thumbnail" data-bs-target="#productCarousel" data-bs-slide-to="{{ forloop.counter0 }}" alt="{{ product.name }}">
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Видео, если есть -->
+            {% if product.videos.exists %}
+                <div class="mt-3">
+                    <h5>Видео о товаре</h5>
+                    {% for video in product.videos.all %}
+                        <div class="mb-3">
+                            <video width="100%" controls>
+                                <source src="{{ video.video.url }}" type="video/mp4">
+                                Ваш браузер не поддерживает видео.
+                            </video>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Информация о товаре -->
+        <div class="col-md-6">
+            <h1 class="mb-3">{{ product.name }}</h1>
+            
+            <!-- Рейтинг -->
+            <div class="mb-3">
+                <div class="rating">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= product.rating %}
+                            <i class="bi bi-star-fill"></i>
+                        {% elif forloop.counter <= product.rating|add:"0.5" %}
+                            <i class="bi bi-star-half"></i>
+                        {% else %}
+                            <i class="bi bi-star"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <span class="ms-2">{{ product.rating|floatformat:1 }} ({{ product.reviews.count }} отзывов)</span>
+            </div>
+            
+            <!-- Продавец -->
+            <div class="mb-3">
+                <p>Продавец: {{ product.seller.username }}
+                    {% if product.seller.is_online %}
+                        <span class="badge bg-success">В сети</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Не в сети</span>
+                    {% endif %}
+                </p>
+            </div>
+            
+            <!-- Цена -->
+            <div class="mb-4">
+                <h3 class="product-price d-inline">{{ product.price }} ₸</h3>
+                {% if product.old_price %}
+                    <span class="product-old-price ms-2">{{ product.old_price }} ₸</span>
+                    <span class="product-discount ms-2">-{{ product.discount_percentage }}%</span>
+                {% endif %}
+            </div>
+            
+            <!-- Наличие -->
+            <div class="mb-4">
+                {% if product.stock > 0 %}
+                    <p class="text-success"><i class="bi bi-check-circle"></i> В наличии: {{ product.stock }} шт.</p>
+                {% else %}
+                    <p class="text-danger"><i class="bi bi-x-circle"></i> Нет в наличии</p>
+                {% endif %}
+            </div>
+            
+            <!-- Кнопки действий -->
+            <div class="mb-4">
+                {% if product.stock > 0 %}
+                    <form action="{% url 'add_to_cart' %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <div class="input-group mb-3">
+                            <span class="input-group-text">Количество</span>
+                            <input type="number" class="form-control" name="quantity" value="1" min="1" max="{{ product.stock }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-cart-plus"></i> В корзину
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <form action="{% url 'add_to_wishlist' %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                    <button type="submit" class="btn btn-outline-danger">
+                        {% if product in request.user.wishlist.products.all %}
+                            <i class="bi bi-heart-fill"></i> В списке желаний
+                        {% else %}
+                            <i class="bi bi-heart"></i> В список желаний
+                        {% endif %}
+                    </button>
+                </form>
+                
+                <button type="button" class="btn btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#trackingModal">
+                    <i class="bi bi-bell"></i> Отслеживать
+                </button>
+                
+                <button type="button" class="btn btn-outline-success ms-2" data-bs-toggle="modal" data-bs-target="#chatModal">
+                    <i class="bi bi-chat-dots"></i> Задать вопрос
+                </button>
+            </div>
+            
+            <!-- Атрибуты товара -->
+            <div class="card mb-4">
+                <div class="card-header">Характеристики</div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            {% for attr in product.attributes.all %}
+                                <tr>
+                                    <th>{{ attr.name }}</th>
+                                    <td>{{ attr.value }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Описание и отзывы -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <ul class="nav nav-tabs" id="productTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Описание</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button" role="tab" aria-controls="reviews" aria-selected="false">Отзывы ({{ product.reviews.count }})</button>
+                </li>
+            </ul>
+            <div class="tab-content" id="productTabsContent">
+                <!-- Описание -->
+                <div class="tab-pane fade show active p-4" id="description" role="tabpanel" aria-labelledby="description-tab">
+                    {{ product.description|linebreaks }}
+                </div>
+                
+                <!-- Отзывы -->
+                <div class="tab-pane fade p-4" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
+                    <!-- Форма отзыва -->
+                    {% if user.is_authenticated and can_review and not has_reviewed %}
+                        <div class="card mb-4">
+                            <div class="card-header">Оставить отзыв</div>
+                            <div class="card-body">
+                                <form action="{% url 'submit_review' product.id %}" method="post" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    
+                                    <div class="mb-3">
+                                        <label for="rating" class="form-label">Оценка</label>
+                                        <div class="rating-form mb-2">
+                                            <div class="rating" id="ratingStars">
+                                                <i class="bi bi-star" data-rating="1"></i>
+                                                <i class="bi bi-star" data-rating="2"></i>
+                                                <i class="bi bi-star" data-rating="3"></i>
+                                                <i class="bi bi-star" data-rating="4"></i>
+                                                <i class="bi bi-star" data-rating="5"></i>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="rating" id="rating" value="5" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="text" class="form-label">Ваш отзыв</label>
+                                        <textarea class="form-control" id="text" name="text" rows="3" required></textarea>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="images" class="form-label">Фотографии (до 3 шт.)</label>
+                                        <input class="form-control" type="file" id="images" name="images" multiple accept="image/*">
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary">Отправить отзыв</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% elif user.is_authenticated and has_reviewed %}
+                        <div class="alert alert-info">
+                            Вы уже оставили отзыв на этот товар.
+                        </div>
+                    {% elif user.is_authenticated and not can_review %}
+                        <div class="alert alert-warning">
+                            Вы можете оставить отзыв только после покупки товара.
+                        </div>
+                    {% elif not user.is_authenticated %}
+                        <div class="alert alert-warning">
+                            <a href="{% url 'login' %}">Войдите</a>, чтобы оставить отзыв.
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Список отзывов -->
+                    <h5>Отзывы покупателей</h5>
+                    {% if product.reviews.exists %}
+                        {% for review in reviews %}
+                            <div class="review-item">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>{{ review.user.username }}</strong>
+                                        <small class="text-muted ms-2">{{ review.created_at|date:"d.m.Y" }}</small>
+                                    </div>
+                                    <div class="rating">
+                                        {% for i in "12345" %}
+                                            {% if forloop.counter <= review.rating %}
+                                                <i class="bi bi-star-fill"></i>
+                                            {% else %}
+                                                <i class="bi bi-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <p>{{ review.text }}</p>
+                                
+                                {% if review.images.exists %}
+                                    <div class="review-images">
+                                        {% for image in review.images.all %}
+                                            <img src="{{ image.image.url }}" class="review-image" alt="Фото к отзыву" data-bs-toggle="modal" data-bs-target="#reviewImageModal" data-src="{{ image.image.url }}">
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>У этого товара пока нет отзывов. Будьте первым!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Похожие товары -->
+    {% if related_products %}
+        <div class="mt-5">
+            <h3>Похожие товары</h3>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+                {% for related in related_products %}
+                    <div class="col">
+                        <div class="card h-100 product-card">
+                            {% if related.images.exists %}
+                                <img src="{{ related.images.first.image.url }}" class="card-img-top product-image" alt="{{ related.name }}">
+                            {% else %}
+                                <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
+                            {% endif %}
+                            
+                            <div class="card-body">
+                                <h5 class="card-title">{{ related.name }}</h5>
+                                <div class="rating mb-2">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= related.rating %}
+                                            <i class="bi bi-star-fill"></i>
+                                        {% elif forloop.counter <= related.rating|add:"0.5" %}
+                                            <i class="bi bi-star-half"></i>
+                                        {% else %}
+                                            <i class="bi bi-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                    <span class="ms-1">{{ related.rating|floatformat:1 }}</span>
+                                </div>
+                                <p class="product-price">{{ related.price }} ₸</p>
+                            </div>
+                            <div class="card-footer">
+                                <a href="{% url 'product_detail' related.slug %}" class="btn btn-sm btn-outline-primary w-100">Подробнее</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Модальное окно для отслеживания товара -->
+<div class="modal fade" id="trackingModal" tabindex="-1" aria-labelledby="trackingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="trackingModalLabel">Отслеживание товара</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{% url 'track_product' product.id %}" method="post">
+                    {% csrf_token %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="track_price" id="trackPrice" checked>
+                        <label class="form-check-label" for="trackPrice">Отслеживать изменение цены</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="track_stock" id="trackStock" checked>
+                        <label class="form-check-label" for="trackStock">Отслеживать наличие товара</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="track_discount" id="trackDiscount" checked>
+                        <label class="form-check-label" for="trackDiscount">Отслеживать скидки</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для чата с продавцом -->
+<div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chatModalLabel">Задать вопрос о товаре</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if user.is_authenticated %}
+                    <form id="startChatForm" action="{% url 'start_chat' %}" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="seller_id" value="{{ product.seller.id }}">
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Ваш вопрос</label>
+                            <textarea class="form-control" id="message" name="message" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Отправить</button>
+                    </form>
+                {% else %}
+                    <p>Чтобы задать вопрос продавцу, необходимо <a href="{% url 'login' %}">войти</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра фото к отзывам -->
+<div class="modal fade" id="reviewImageModal" tabindex="-1" aria-labelledby="reviewImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reviewImageModalLabel">Фото к отзыву</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="" id="reviewModalImage" class="img-fluid" alt="Фото к отзыву">
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Запись времени просмотра
+        window.addEventListener('beforeunload', function() {
+            fetch("{% url 'leave_view_time' product.id %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+        });
+        
+        // Рейтинг в форме отзыва
+        const ratingStars = document.querySelectorAll('#ratingStars i');
+        const ratingInput = document.getElementById('rating');
+        
+        ratingStars.forEach(star => {
+            star.addEventListener('click', function() {
+                const rating = this.dataset.rating;
+                ratingInput.value = rating;
+                
+                ratingStars.forEach(s => {
+                    if (s.dataset.rating <= rating) {
+                        s.classList.remove('bi-star');
+                        s.classList.add('bi-star-fill');
+                    } else {
+                        s.classList.remove('bi-star-fill');
+                        s.classList.add('bi-star');
+                    }
+                });
+            });
+        });
+        
+        // Просмотр фото к отзывам
+        const reviewImages = document.querySelectorAll('.review-image');
+        const reviewModalImage = document.getElementById('reviewModalImage');
+        
+        reviewImages.forEach(img => {
+            img.addEventListener('click', function() {
+                reviewModalImage.src = this.dataset.src;
+            });
+        });
+        
+        // Миниатюры в галерее
+        const thumbnails = document.querySelectorAll('.product-thumbnail');
+        thumbnails.forEach(thumb => {
+            thumb.addEventListener('click', function() {
+                const slideIndex = this.dataset.bsSlideTo;
+                bootstrap.Carousel.getInstance(document.getElementById('productCarousel')).to(slideIndex);
+            });
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

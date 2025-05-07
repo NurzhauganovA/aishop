@@ -1,0 +1,430 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование товара | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Панель продавца</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Обзор</a>
+                    <a href="{% url 'seller_products' %}" class="list-group-item list-group-item-action">Мои товары</a>
+                    <a href="{% url 'seller_product_add' %}" class="list-group-item list-group-item-action">Добавить товар</a>
+                    <a href="{% url 'seller_orders' %}" class="list-group-item list-group-item-action">Заказы</a>
+                    <a href="{% url 'chat_list' %}" class="list-group-item list-group-item-action">Сообщения</a>
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Вернуться в профиль</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Редактирование товара: {{ product.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="productForm">
+                        {% csrf_token %}
+
+                        <!-- Основная информация -->
+                        <h6 class="mb-3">Основная информация</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_name" class="form-label">Название товара *</label>
+                                <input type="text" id="id_name" name="name" class="form-control" value="{{ form.name.value }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_category" class="form-label">Категория *</label>
+                                <select id="id_category" name="category" class="form-select" required>
+                                    <option value="">Выберите категорию</option>
+                                    {% for category in categories %}
+                                        <option value="{{ category.id }}" {% if category.id == form.category.value.id %}selected{% endif %}>{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_price" class="form-label">Цена (₸) *</label>
+                                <input type="number" id="id_price" name="price" class="form-control" min="0" step="0.01" value="{{ form.price.value }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_old_price" class="form-label">Старая цена (₸)</label>
+                                <input type="number" id="id_old_price" name="old_price" class="form-control" min="0" step="0.01" value="{{ form.old_price.value|default:'' }}">
+                                <small class="text-muted">Оставьте пустым, если нет скидки</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_stock" class="form-label">Количество в наличии *</label>
+                                <input type="number" id="id_stock" name="stock" class="form-control" min="0" value="{{ form.stock.value }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_status" class="form-label">Статус *</label>
+                                <select id="id_status" name="status" class="form-select" required>
+                                    <option value="active" {% if form.status.value == 'active' %}selected{% endif %}>Активен</option>
+                                    <option value="archive" {% if form.status.value == 'archive' %}selected{% endif %}>Архив</option>
+                                    <option value="out_of_stock" {% if form.status.value == 'out_of_stock' %}selected{% endif %}>Нет в наличии</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Описание -->
+                        <h6 class="mb-3">Описание товара</h6>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="id_description" class="form-label">Описание *</label>
+                                <button type="button" id="generateDescription" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-magic"></i> Сгенерировать описание с ИИ
+                                </button>
+                            </div>
+                            <textarea id="id_description" name="description" class="form-control" rows="5" required>{{ form.description.value }}</textarea>
+                        </div>
+
+                        <!-- Характеристики -->
+                        <h6 class="mb-3">Характеристики товара</h6>
+                        <div class="mb-4" id="attributes-container">
+                            {{ attribute_formset.management_form }}
+                            {% for form in attribute_formset %}
+                                <div class="row attribute-row mb-2">
+                                    <div class="col-md-5">
+                                        {{ form.id }}
+                                        <input type="text" name="{{ form.prefix }}-name" class="form-control" placeholder="Название характеристики" value="{{ form.name.value|default:'' }}">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="text" name="{{ form.prefix }}-value" class="form-control" placeholder="Значение" value="{{ form.value.value|default:'' }}">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-check">
+                                            {{ form.DELETE }}
+                                            <label class="form-check-label" for="{{ form.DELETE.id_for_label }}">Удалить</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-4">
+                            <button type="button" id="add-attribute" class="btn btn-outline-secondary">
+                                <i class="bi bi-plus-circle"></i> Добавить характеристику
+                            </button>
+                        </div>
+
+                        <!-- Текущие изображения -->
+                        <h6 class="mb-3">Текущие изображения</h6>
+                        <div class="row mb-4">
+                            {% for image in product.images.all %}
+                                <div class="col-md-3 mb-3">
+                                    <div class="card">
+                                        <img src="{{ image.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="delete_image_{{ image.id }}" name="delete_image" value="{{ image.id }}">
+                                                <label class="form-check-label" for="delete_image_{{ image.id }}">
+                                                    Удалить
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" id="main_image_{{ image.id }}" name="main_image" value="{{ image.id }}" {% if image.is_main %}checked{% endif %}>
+                                                <label class="form-check-label" for="main_image_{{ image.id }}">
+                                                    Основное
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="col-12">
+                                    <div class="alert alert-warning">
+                                        У товара нет изображений. Добавьте хотя бы одно изображение ниже.
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Добавление новых изображений и видео -->
+                        <h6 class="mb-3">Добавить новые медиафайлы</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_images" class="form-label">Новые изображения</label>
+                                <input type="file" id="id_images" name="images" class="form-control" multiple accept="image/*">
+                                <small class="text-muted">Можно загрузить несколько изображений</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_videos" class="form-label">Новые видео</label>
+                                <input type="file" id="id_videos" name="videos" class="form-control" multiple accept="video/*">
+                                <small class="text-muted">Необязательно. Рекомендуемый формат - MP4.</small>
+                            </div>
+                        </div>
+
+                        <!-- Текущие видео -->
+                        {% if product.videos.exists %}
+                            <h6 class="mb-3">Текущие видео</h6>
+                            <div class="row mb-4">
+                                {% for video in product.videos.all %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <video class="w-100" controls>
+                                                    <source src="{{ video.video.url }}" type="video/mp4">
+                                                    Ваш браузер не поддерживает видео.
+                                                </video>
+                                                <div class="form-check mt-2">
+                                                    <input class="form-check-input" type="checkbox" id="delete_video_{{ video.id }}" name="delete_video" value="{{ video.id }}">
+                                                    <label class="form-check-label" for="delete_video_{{ video.id }}">
+                                                        Удалить
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'seller_products' %}" class="btn btn-outline-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно генерации описания -->
+<div class="modal fade" id="generateDescriptionModal" tabindex="-1" aria-labelledby="generateDescriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateDescriptionModalLabel">Генерация описания с помощью ИИ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="product-name-ai" class="form-label">Название товара</label>
+                    <input type="text" class="form-control" id="product-name-ai" value="{{ product.name }}">
+                </div>
+
+                <div id="ai-attributes-container">
+                    {% for attr in product.attributes.all %}
+                    <div class="row mb-2">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control ai-attribute-name" placeholder="Название характеристики" value="{{ attr.name }}">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" class="form-control ai-attribute-value" placeholder="Значение" value="{{ attr.value }}">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger remove-ai-attribute">Удалить</button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="row mb-2">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control ai-attribute-name" placeholder="Название характеристики">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" class="form-control ai-attribute-value" placeholder="Значение">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger remove-ai-attribute">Удалить</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                    <button type="button" id="add-ai-attribute" class="btn btn-outline-secondary">
+                        <i class="bi bi-plus-circle"></i> Добавить характеристику
+                    </button>
+                </div>
+
+                <div id="ai-result-container" style="display: none;">
+                    <hr>
+                    <h6>Сгенерированное описание:</h6>
+                    <div class="p-3 bg-light rounded" id="ai-result"></div>
+                </div>
+
+                <div id="ai-loading" style="display: none;">
+                    <div class="d-flex justify-content-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                    <p class="text-center mt-2">ИИ генерирует описание...</p>
+                </div>
+
+                <div id="ai-error" class="alert alert-danger" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="generate-ai-description">Сгенерировать</button>
+                <button type="button" class="btn btn-success" id="use-ai-description" style="display: none;">Использовать это описание</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Добавление характеристик
+        const attributesContainer = document.getElementById('attributes-container');
+        const addAttributeBtn = document.getElementById('add-attribute');
+        const totalFormsInput = document.querySelector('input[name="{{ attribute_formset.prefix }}-TOTAL_FORMS"]');
+        let formCount = parseInt(totalFormsInput.value);
+
+        // Функция для добавления новой строки атрибута
+        addAttributeBtn.addEventListener('click', function() {
+            const attributeRow = document.createElement('div');
+            attributeRow.className = 'row attribute-row mb-2';
+            attributeRow.innerHTML = `
+                <div class="col-md-5">
+                    <input type="text" name="{{ attribute_formset.prefix }}-${formCount}-name" class="form-control" placeholder="Название характеристики">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="{{ attribute_formset.prefix }}-${formCount}-value" class="form-control" placeholder="Значение">
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="id_{{ attribute_formset.prefix }}-${formCount}-DELETE" name="{{ attribute_formset.prefix }}-${formCount}-DELETE">
+                        <label class="form-check-label" for="id_{{ attribute_formset.prefix }}-${formCount}-DELETE">Удалить</label>
+                    </div>
+                </div>
+            `;
+            attributesContainer.appendChild(attributeRow);
+
+            // Увеличиваем счетчик форм
+            formCount++;
+            totalFormsInput.value = formCount;
+        });
+
+        // Генерация описания с ИИ
+        const generateDescriptionBtn = document.getElementById('generateDescription');
+        const generateDescriptionModal = new bootstrap.Modal(document.getElementById('generateDescriptionModal'));
+        const productNameAI = document.getElementById('product-name-ai');
+        const generateAIDescriptionBtn = document.getElementById('generate-ai-description');
+        const useAIDescriptionBtn = document.getElementById('use-ai-description');
+        const aiResultContainer = document.getElementById('ai-result-container');
+        const aiResult = document.getElementById('ai-result');
+        const aiLoading = document.getElementById('ai-loading');
+        const aiError = document.getElementById('ai-error');
+        const aiAttributesContainer = document.getElementById('ai-attributes-container');
+        const addAIAttributeBtn = document.getElementById('add-ai-attribute');
+
+        // Открытие модального окна генерации описания
+        if (generateDescriptionBtn) {
+            generateDescriptionBtn.addEventListener('click', function() {
+                generateDescriptionModal.show();
+            });
+        }
+
+        // Добавление характеристик в модальном окне
+        if (addAIAttributeBtn) {
+            addAIAttributeBtn.addEventListener('click', function() {
+                const attributeRow = document.createElement('div');
+                attributeRow.className = 'row mb-2';
+                attributeRow.innerHTML = `
+                    <div class="col-md-5">
+                        <input type="text" class="form-control ai-attribute-name" placeholder="Название характеристики">
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" class="form-control ai-attribute-value" placeholder="Значение">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger remove-ai-attribute">Удалить</button>
+                    </div>
+                `;
+                aiAttributesContainer.appendChild(attributeRow);
+
+                // Добавляем обработчик для кнопки удаления
+                attributeRow.querySelector('.remove-ai-attribute').addEventListener('click', function() {
+                    attributeRow.remove();
+                });
+            });
+        }
+
+        // Обработчики для уже существующих кнопок удаления в модальном окне
+        document.querySelectorAll('.remove-ai-attribute').forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.row').remove();
+            });
+        });
+
+        // Генерация описания
+        if (generateAIDescriptionBtn) {
+            generateAIDescriptionBtn.addEventListener('click', function() {
+                const productName = productNameAI.value.trim();
+
+                if (!productName) {
+                    aiError.textContent = 'Пожалуйста, введите название товара';
+                    aiError.style.display = 'block';
+                    return;
+                }
+
+                // Собираем характеристики
+                const attributes = {};
+                document.querySelectorAll('#ai-attributes-container .row').forEach(row => {
+                    const nameInput = row.querySelector('.ai-attribute-name');
+                    const valueInput = row.querySelector('.ai-attribute-value');
+
+                    if (nameInput && valueInput && nameInput.value.trim() && valueInput.value.trim()) {
+                        attributes[nameInput.value.trim()] = valueInput.value.trim();
+                    }
+                });
+
+                // Скрываем ошибки и результат, показываем загрузку
+                aiError.style.display = 'none';
+                aiResultContainer.style.display = 'none';
+                aiLoading.style.display = 'block';
+                useAIDescriptionBtn.style.display = 'none';
+
+                // Отправляем запрос на сервер для генерации описания
+                fetch('/seller/generate-description/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrfmiddlewaretoken"]').value
+                    },
+                    body: JSON.stringify({
+                        name: productName,
+                        attributes: attributes
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    aiLoading.style.display = 'none';
+
+                    if (data.status === 'success') {
+                        aiResult.textContent = data.description;
+                        aiResultContainer.style.display = 'block';
+                        useAIDescriptionBtn.style.display = 'inline-block';
+                    } else {
+                        aiError.textContent = data.message || 'Произошла ошибка при генерации описания';
+                        aiError.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    aiLoading.style.display = 'none';
+                    aiError.textContent = 'Произошла ошибка при генерации описания: ' + error.message;
+                    aiError.style.display = 'block';
+                    console.error('Error:', error);
+                });
+            });
+        }
+
+        // Использование сгенерированного описания
+        if (useAIDescriptionBtn) {
+            useAIDescriptionBtn.addEventListener('click', function() {
+                document.getElementById('id_description').value = aiResult.textContent;
+                generateDescriptionModal.hide();
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% endblock %}

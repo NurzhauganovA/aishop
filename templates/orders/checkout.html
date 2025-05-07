@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}Оформление заказа | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Оформление заказа</h1>
+    
+    <div class="row">
+        <!-- Форма заказа -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Контактная информация</h5>
+                </div>
+                <div class="card-body">
+                    <form id="checkoutForm" action="{% url 'place_order' %}" method="post">
+                        {% csrf_token %}
+                        
+                        {% if addresses %}
+                            <div class="mb-3">
+                                <label for="id_address_choices" class="form-label">Выберите адрес из сохраненных</label>
+                                <select class="form-select" id="id_address_choices" name="address_choices">
+                                    <option value="">-- Выберите адрес --</option>
+                                    {% for address in addresses %}
+                                        <option value="{{ address.id }}" {% if address.is_default %}selected{% endif %}>
+                                            {{ address.title }} ({{ address.full_name }}, {{ address.city }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_full_name" class="form-label">Полное имя *</label>
+                                <input type="text" class="form-control" id="id_full_name" name="full_name" required
+                                       value="{% if default_address %}{{ default_address.full_name }}{% endif %}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_phone" class="form-label">Телефон *</label>
+                                <input type="tel" class="form-control" id="id_phone" name="phone" required
+                                       value="{% if default_address %}{{ default_address.phone }}{% endif %}">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="id_email" name="email" required
+                                   value="{{ user.email }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_address_line" class="form-label">Адрес *</label>
+                            <input type="text" class="form-control" id="id_address_line" name="address_line" required
+                                   value="{% if default_address %}{{ default_address.address_line1 }}{% endif %}">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="id_city" class="form-label">Город *</label>
+                                <input type="text" class="form-control" id="id_city" name="city" required
+                                       value="{% if default_address %}{{ default_address.city }}{% endif %}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_postal_code" class="form-label">Почтовый индекс</label>
+                                <input type="text" class="form-control" id="id_postal_code" name="postal_code"
+                                       value="{% if default_address %}{{ default_address.postal_code }}{% endif %}">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_comment" class="form-label">Комментарий к заказу</label>
+                            <textarea class="form-control" id="id_comment" name="comment" rows="3"></textarea>
+                        </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Способ оплаты</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="payment_method" id="payment_kaspi" value="kaspi" checked>
+                        <label class="form-check-label" for="payment_kaspi">
+                            Kaspi QR / Kaspi Перевод
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="payment_method" id="payment_card" value="card">
+                        <label class="form-check-label" for="payment_card">
+                            Банковская карта
+                        </label>
+                    </div>
+                    
+                    <!-- Шаблон для ввода данных карты (появляется при выборе банковской карты) -->
+                    <div id="card_payment_form" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Это демонстрационная версия. Введенные данные карты не будут обрабатываться.
+                        </div>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label for="id_card_number" class="form-label">Номер карты</label>
+                                <input type="text" class="form-control" id="id_card_number" placeholder="XXXX XXXX XXXX XXXX">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_expiry_date" class="form-label">Срок действия</label>
+                                <input type="text" class="form-control" id="id_expiry_date" placeholder="ММ/ГГ">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_cvv" class="form-label">CVV</label>
+                                <input type="text" class="form-control" id="id_cvv" placeholder="XXX">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Шаблон для Kaspi QR (появляется при выборе Kaspi) -->
+                    <div id="kaspi_payment_form">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Это демонстрационная версия. QR-код для оплаты будет предоставлен после оформления заказа.
+                        </div>
+                        <div class="text-center">
+                            <img src="https://via.placeholder.com/200x200?text=Kaspi+QR" alt="Kaspi QR" class="img-fluid">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Итоги заказа -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Ваш заказ</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-borderless">
+                            <tbody>
+                                {% for seller, items in sellers_products.items %}
+                                    <tr>
+                                        <th colspan="2" class="border-bottom pt-2">Продавец: {{ seller.username }}</th>
+                                    </tr>
+                                    {% for item in items %}
+                                        <tr>
+                                            <td class="ps-3">
+                                                {{ item.product.name }} x {{ item.quantity }}
+                                                <div class="text-muted small">{{ item.product.price }} ₸/шт.</div>
+                                            </td>
+                                            <td class="text-end">{{ item.subtotal }} ₸</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% endfor %}
+                                <tr class="border-top">
+                                    <th>Итого:</th>
+                                    <td class="text-end fw-bold">{{ cart.total_price }} ₸</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="terms_agree" required>
+                        <label class="form-check-label" for="terms_agree">
+                            Я согласен с <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">условиями доставки и оплаты</a>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100" id="place_order_button" disabled>
+                        Оформить заказ
+                    </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с условиями -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="termsModalLabel">Условия доставки и оплаты</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Доставка</h6>
+                <p>Доставка осуществляется продавцами самостоятельно или с помощью курьерских служб. Сроки и стоимость доставки зависят от региона и выбранного продавца.</p>
+                
+                <h6>Оплата</h6>
+                <p>Оплата производится с помощью Kaspi QR, Kaspi Перевод или банковской карты. После оформления заказа вам будет предоставлена информация для оплаты.</p>
+                
+                <h6>Возврат</h6>
+                <p>Возврат товара возможен в течение 14 дней с момента получения, если товар не был в употреблении и сохранены его товарный вид, потребительские свойства, пломбы, фабричные ярлыки.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Понятно</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Переключение методов оплаты
+        const paymentKaspi = document.getElementById('payment_kaspi');
+        const paymentCard = document.getElementById('payment_card');
+        const kaspiForm = document.getElementById('kaspi_payment_form');
+        const cardForm = document.getElementById('card_payment_form');
+        
+        paymentKaspi.addEventListener('change', function() {
+            if (this.checked) {
+                kaspiForm.style.display = 'block';
+                cardForm.style.display = 'none';
+            }
+        });
+        
+        paymentCard.addEventListener('change', function() {
+            if (this.checked) {
+                kaspiForm.style.display = 'none';
+                cardForm.style.display = 'block';
+            }
+        });
+        
+        // Заполнение формы данными выбранного адреса
+        const addressSelect = document.getElementById('id_address_choices');
+        if (addressSelect) {
+            addressSelect.addEventListener('change', function() {
+                if (this.value) {
+                    fetch(`/accounts/addresses/${this.value}/json/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            document.getElementById('id_full_name').value = data.full_name;
+                            document.getElementById('id_phone').value = data.phone;
+                            document.getElementById('id_address_line').value = data.address_line1;
+                            document.getElementById('id_city').value = data.city;
+                            document.getElementById('id_postal_code').value = data.postal_code || '';
+                        });
+                }
+            });
+        }
+        
+        // Активация кнопки оформления заказа
+        const termsCheck = document.getElementById('terms_agree');
+        const orderButton = document.getElementById('place_order_button');
+        
+        termsCheck.addEventListener('change', function() {
+            orderButton.disabled = !this.checked;
+        });
+    });
+</script>
+{% endblock %}
+
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои заказы | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Личный кабинет</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
+                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action active">Мои заказы</a>
+                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action">Адреса доставки</a>
+                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">Список желаний</a>
+                    <a href="{% url 'notification_list' %}" class="list-group-item list-group-item-action">Уведомления</a>
+                    <a href="{% url 'notification_settings' %}" class="list-group-item list-group-item-action">Настройки уведомлений</a>
+                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action">Редактировать профиль</a>
+                    <a href="{% url 'change_password' %}" class="list-group-item list-group-item-action">Изменить пароль</a>
+                    {% if user.is_seller %}
+                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Мои заказы</h5>
+                </div>
+                <div class="card-body">
+                    {% if orders %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>№ заказа</th>
+                                        <th>Дата</th>
+                                        <th>Продавец</th>
+                                        <th>Статус</th>
+                                        <th>Сумма</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in orders %}
+                                        <tr>
+                                            <td>{{ order.id }}</td>
+                                            <td>{{ order.created_at|date:"d.m.Y" }}</td>
+                                            <td>{{ order.seller.username }}</td>
+                                            <td>
+                                                {% if order.status == 'new' %}
+                                                    <span class="badge bg-info">Новый</span>
+                                                {% elif order.status == 'processing' %}
+                                                    <span class="badge bg-warning text-dark">В обработке</span>
+                                                {% elif order.status == 'shipped' %}
+                                                    <span class="badge bg-primary">Отправлен</span>
+                                                {% elif order.status == 'completed' %}
+                                                    <span class="badge bg-success">Завершен</span>
+                                                {% elif order.status == 'cancelled' %}
+                                                    <span class="badge bg-danger">Отменен</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ order.total_price }} ₸</td>
+                                            <td>
+                                                <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-outline-primary">Детали</a>
+                                                {% if order.status == 'new' or order.status == 'processing' %}
+                                                    <a href="{% url 'cancel_order' order.id %}" class="btn btn-sm btn-outline-danger">Отменить</a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-box-seam" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">У вас пока нет заказов</h5>
+                            <p class="text-muted">Когда вы сделаете заказ, информация о нем появится здесь</p>
+                            <a href="{% url 'product_list' %}" class="btn btn-primary mt-3">Перейти к покупкам</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

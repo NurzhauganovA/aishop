@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Настройки уведомлений | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Личный кабинет</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
+                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action">Мои заказы</a>
+                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action">Адреса доставки</a>
+                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">Список желаний</a>
+                    <a href="{% url 'notification_list' %}" class="list-group-item list-group-item-action">Уведомления</a>
+                    <a href="{% url 'notification_settings' %}" class="list-group-item list-group-item-action active">Настройки уведомлений</a>
+                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action">Редактировать профиль</a>
+                    <a href="{% url 'change_password' %}" class="list-group-item list-group-item-action">Изменить пароль</a>
+                    {% if user.is_seller %}
+                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Настройки email-уведомлений</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="id_order_updates" name="order_updates" {% if form.order_updates.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_order_updates">Обновления о статусе заказов</label>
+                            <div class="form-text">Получайте уведомления при изменении статуса ваших заказов</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="id_new_messages" name="new_messages" {% if form.new_messages.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_new_messages">Новые сообщения</label>
+                            <div class="form-text">Получайте уведомления о новых сообщениях от продавцов</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="id_product_updates" name="product_updates" {% if form.product_updates.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_product_updates">Обновления товаров</label>
+                            <div class="form-text">Получайте уведомления об изменениях в отслеживаемых товарах (цена, наличие)</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="id_promotions" name="promotions" {% if form.promotions.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_promotions">Акции и специальные предложения</label>
+                            <div class="form-text">Получайте информацию о скидках и специальных предложениях</div>
+                        </div>
+                        
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-info-circle"></i> 
+                            Уведомления о заказах, оплате и безопасности аккаунта всегда будут отправляться на ваш email.
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Настройки push-уведомлений</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-secondary mb-0">
+                        <i class="bi bi-bell"></i> 
+                        Push-уведомления отображаются в правом нижнем углу экрана при использовании сайта.
+                        Вы всегда будете получать эти уведомления при входе на сайт. Все уведомления также доступны на странице уведомлений.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+.venv/
+.env
+.idea
+marketplace.log
+*.pyc
+__pycache__/
+**/*pycache*/

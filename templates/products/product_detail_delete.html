@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Удаление товара | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Панель продавца</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Обзор</a>
+                    <a href="{% url 'seller_products' %}" class="list-group-item list-group-item-action">Мои товары</a>
+                    <a href="{% url 'seller_product_add' %}" class="list-group-item list-group-item-action">Добавить товар</a>
+                    <a href="{% url 'seller_orders' %}" class="list-group-item list-group-item-action">Заказы</a>
+                    <a href="{% url 'chat_list' %}" class="list-group-item list-group-item-action">Сообщения</a>
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Вернуться в профиль</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Удаление товара</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Внимание!</strong> Вы собираетесь удалить товар. Это действие нельзя будет отменить.
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            {% if product.images.exists %}
+                                <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}" class="img-fluid rounded">
+                            {% else %}
+                                <div class="placeholder-image bg-light d-flex justify-content-center align-items-center rounded" style="height: 200px;">
+                                    <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <h5>{{ product.name }}</h5>
+                            <p><strong>Категория:</strong> {{ product.category.name }}</p>
+                            <p><strong>Цена:</strong> {{ product.price }} ₸</p>
+                            <p><strong>В наличии:</strong> {{ product.stock }}</p>
+                            <p><strong>Статус:</strong>
+                                {% if product.status == 'active' %}
+                                    <span class="badge bg-success">Активен</span>
+                                {% elif product.status == 'archive' %}
+                                    <span class="badge bg-secondary">В архиве</span>
+                                {% elif product.status == 'out_of_stock' %}
+                                    <span class="badge bg-danger">Нет в наличии</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <p>Вместо удаления товара вы можете изменить его статус на "В архиве", чтобы скрыть его от покупателей, но сохранить возможность восстановления позже.</p>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'seller_products' %}" class="btn btn-outline-secondary me-md-2">Отмена</a>
+                            <a href="{% url 'seller_product_edit' product.id %}" class="btn btn-warning me-md-2">Редактировать</a>
+                            <button type="submit" class="btn btn-danger">Удалить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

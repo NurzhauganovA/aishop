@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}Обновление статуса заказа #{{ order.id }} | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Панель продавца</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Обзор</a>
+                    <a href="{% url 'seller_products' %}" class="list-group-item list-group-item-action">Мои товары</a>
+                    <a href="{% url 'seller_product_add' %}" class="list-group-item list-group-item-action">Добавить товар</a>
+                    <a href="{% url 'seller_orders' %}" class="list-group-item list-group-item-action active">Заказы</a>
+                    <a href="{% url 'chat_list' %}" class="list-group-item list-group-item-action">Сообщения</a>
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Вернуться в профиль</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Обновление статуса заказа #{{ order.id }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Информация о заказе</h6>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Номер заказа</th>
+                                    <td>{{ order.id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Покупатель</th>
+                                    <td>{{ order.buyer.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Дата создания</th>
+                                    <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Сумма заказа</th>
+                                    <td>{{ order.total_price }} ₸</td>
+                                </tr>
+                                <tr>
+                                    <th>Текущий статус</th>
+                                    <td>
+                                        <span class="badge {% if order.status == 'new' %}bg-info{% elif order.status == 'processing' %}bg-warning text-dark{% elif order.status == 'shipped' %}bg-primary{% elif order.status == 'completed' %}bg-success{% elif order.status == 'cancelled' %}bg-danger{% endif %}">
+                                            {% if order.status == 'new' %}Новый{% elif order.status == 'processing' %}В обработке{% elif order.status == 'shipped' %}Отправлен{% elif order.status == 'completed' %}Завершен{% elif order.status == 'cancelled' %}Отменен{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Контактная информация</h6>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Имя</th>
+                                    <td>{{ order.full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Телефон</th>
+                                    <td>{{ order.phone }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Email</th>
+                                    <td>{{ order.email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Адрес доставки</th>
+                                    <td>{{ order.address }}, {{ order.city }}{% if order.postal_code %}, {{ order.postal_code }}{% endif %}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <h6>Обновление статуса</h6>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_status" class="form-label">Новый статус</label>
+                            <select class="form-select" id="id_status" name="status">
+                                <option value="new" {% if order.status == 'new' %}selected{% endif %}>Новый</option>
+                                <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>В обработке</option>
+                                <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Отправлен</option>
+                                <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Завершен</option>
+                                <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Отменен</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_tracking_number" class="form-label">Номер отслеживания</label>
+                            <input type="text" class="form-control" id="id_tracking_number" name="tracking_number" value="{{ order.tracking_number }}">
+                            <small class="text-muted">Укажите номер отслеживания (трек-номер) для отправленных заказов</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_comment" class="form-label">Комментарий к изменению статуса</label>
+                            <textarea class="form-control" id="id_comment" name="comment" rows="3"></textarea>
+                            <small class="text-muted">Покупатель будет уведомлен об изменении статуса заказа и увидит ваш комментарий</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'seller_order_detail' order.id %}" class="btn btn-outline-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Обновить статус</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelect = document.getElementById('id_status');
+        const trackingNumberContainer = document.querySelector('[for="id_tracking_number"]').parentNode;
+
+        // Показываем/скрываем поле номера отслеживания в зависимости от статуса
+        function toggleTrackingNumberField() {
+            if (statusSelect.value === 'shipped') {
+                trackingNumberContainer.style.display = 'block';
+            } else {
+                trackingNumberContainer.style.display = 'none';
+            }
+        }
+
+        // Инициализация
+        toggleTrackingNumberField();
+
+        // Обработчик изменения статуса
+        statusSelect.addEventListener('change', toggleTrackingNumberField);
+    });
+</script>
+{% endblock %}
+
+{% endblock %}

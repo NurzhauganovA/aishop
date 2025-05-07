@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Список желаний | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Личный кабинет</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
+                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action">Мои заказы</a>
+                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action">Адреса доставки</a>
+                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action active">Список желаний</a>
+                    <a href="{% url 'notification_list' %}" class="list-group-item list-group-item-action">Уведомления</a>
+                    <a href="{% url 'notification_settings' %}" class="list-group-item list-group-item-action">Настройки уведомлений</a>
+                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action">Редактировать профиль</a>
+                    <a href="{% url 'change_password' %}" class="list-group-item list-group-item-action">Изменить пароль</a>
+                    {% if user.is_seller %}
+                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Список желаний</h5>
+                </div>
+                <div class="card-body">
+                    {% if wishlist.products.exists %}
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                            {% for product in wishlist.products.all %}
+                                <div class="col">
+                                    <div class="card h-100 wishlist-item">
+                                        {% if product.images.exists %}
+                                            <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                        {% else %}
+                                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
+                                        {% endif %}
+                                        
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ product.name }}</h5>
+                                            <div class="rating mb-2">
+                                                {% for i in "12345" %}
+                                                    {% if forloop.counter <= product.rating %}
+                                                        <i class="bi bi-star-fill"></i>
+                                                    {% elif forloop.counter <= product.rating|add:"0.5" %}
+                                                        <i class="bi bi-star-half"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-star"></i>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
+                                            </div>
+                                            <p class="product-price">{{ product.price }} ₸</p>
+                                            {% if product.old_price %}
+                                                <p>
+                                                    <span class="product-old-price">{{ product.old_price }} ₸</span>
+                                                    <span class="product-discount">-{{ product.discount_percentage }}%</span>
+                                                </p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-footer d-flex justify-content-between">
+                                            <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary">Подробнее</a>
+                                            <div>
+                                                <form action="{% url 'add_to_cart' %}" method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                                                    <input type="hidden" name="quantity" value="1">
+                                                    <button type="submit" class="btn btn-sm btn-primary">
+                                                        <i class="bi bi-cart-plus"></i>
+                                                    </button>
+                                                </form>
+                                                <form action="{% url 'add_to_wishlist' %}" method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-heart-fill"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-heart" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">Ваш список желаний пуст</h5>
+                            <p class="text-muted">Добавляйте товары в список желаний, чтобы не потерять их из виду</p>
+                            <a href="{% url 'product_list' %}" class="btn btn-primary mt-3">Перейти к покупкам</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

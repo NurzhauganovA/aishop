@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}Корзина | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Корзина покупок</h1>
+    
+    {% if cart.items.exists %}
+        <!-- Товары в корзине -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Товар</th>
+                                <th>Цена</th>
+                                <th>Количество</th>
+                                <th>Подытог</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart.items.all %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if item.product.images.exists %}
+                                                <img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}" class="img-thumbnail me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                                            {% else %}
+                                                <div class="placeholder-image bg-light d-flex justify-content-center align-items-center me-3" style="width: 50px; height: 50px;">
+                                                    <i class="bi bi-image text-muted"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <h6 class="mb-0">{{ item.product.name }}</h6>
+                                                <small class="text-muted">Продавец: {{ item.product.seller.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.product.price }} ₸</td>
+                                    <td>
+                                        <div class="input-group input-group-sm" style="width: 120px;">
+                                            <button type="button" class="btn btn-outline-secondary quantity-down">-</button>
+                                            <input type="number" class="form-control text-center cart-quantity-input" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" data-item-id="{{ item.id }}">
+                                            <button type="button" class="btn btn-outline-secondary quantity-up">+</button>
+                                        </div>
+                                    </td>
+                                    <td id="subtotal-{{ item.id }}">{{ item.subtotal }} ₸</td>
+                                    <td>
+                                        <form action="{% url 'remove_from_cart' item.id %}" method="post">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Итого -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Доставка будет рассчитана на этапе оформления заказа.
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Итого</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Товары ({{ cart.item_count }}):</span>
+                            <span id="cart-total">{{ cart.total_price }} ₸</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-4">
+                            <span class="fw-bold">Итого:</span>
+                            <span class="fw-bold" id="cart-final-total">{{ cart.total_price }} ₸</span>
+                        </div>
+                        <a href="{% url 'checkout' %}" class="btn btn-primary d-block">Оформить заказ</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- Пустая корзина -->
+        <div class="text-center py-5">
+            <i class="bi bi-cart-x" style="font-size: 4rem;"></i>
+            <h3 class="mt-3">Ваша корзина пуста</h3>
+            <p class="text-muted mb-4">Добавьте товары в корзину, чтобы оформить заказ</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary">Перейти к покупкам</a>
+        </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработчики +/- для изменения количества
+        document.querySelectorAll('.quantity-up').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('input');
+                const max = parseInt(input.getAttribute('max'), 10);
+                const currentValue = parseInt(input.value, 10);
+                
+                if (currentValue < max) {
+                    input.value = currentValue + 1;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        
+        document.querySelectorAll('.quantity-down').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('input');
+                const currentValue = parseInt(input.value, 10);
+                
+                if (currentValue > 1) {
+                    input.value = currentValue - 1;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        
+        // Обработчик изменения количества
+        document.querySelectorAll('.cart-quantity-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const itemId = this.dataset.itemId;
+                const quantity = parseInt(this.value, 10);
+                
+                if (quantity < 1) {
+                    this.value = 1;
+                    return;
+                }
+                
+                const max = parseInt(this.getAttribute('max'), 10);
+                if (quantity > max) {
+                    this.value = max;
+                    alert(`Доступно только ${max} шт. этого товара`);
+                    return;
+                }
+                
+                // Отправка запроса на обновление корзины
+                fetch('/update-cart/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        item_id: itemId,
+                        quantity: quantity
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Обновляем отображение подытога
+                        const subtotalElement = document.getElementById(`subtotal-${itemId}`);
+                        if (subtotalElement) {
+                            subtotalElement.textContent = data.subtotal + ' ₸';
+                        }
+                        
+                        // Обновляем общую сумму
+                        const totalElement = document.getElementById('cart-total');
+                        const finalTotalElement = document.getElementById('cart-final-total');
+                        if (totalElement) {
+                            totalElement.textContent = data.total + ' ₸';
+                        }
+                        if (finalTotalElement) {
+                            finalTotalElement.textContent = data.total + ' ₸';
+                        }
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

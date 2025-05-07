@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Уведомления | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Личный кабинет</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
+                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action">Мои заказы</a>
+                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action">Адреса доставки</a>
+                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">Список желаний</a>
+                    <a href="{% url 'notification_list' %}" class="list-group-item list-group-item-action active">Уведомления</a>
+                    <a href="{% url 'notification_settings' %}" class="list-group-item list-group-item-action">Настройки уведомлений</a>
+                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action">Редактировать профиль</a>
+                    <a href="{% url 'change_password' %}" class="list-group-item list-group-item-action">Изменить пароль</a>
+                    {% if user.is_seller %}
+                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Уведомления 
+                        {% if unread_count > 0 %}
+                            <span class="badge bg-danger">{{ unread_count }}</span>
+                        {% endif %}
+                    </h5>
+                    <div>
+                        <a href="{% url 'mark_all_notifications_as_read' %}" class="btn btn-sm btn-outline-primary">Отметить все как прочитанные</a>
+                        <a href="{% url 'clear_all_notifications' %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Вы уверены, что хотите удалить все уведомления?')">Очистить все</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        <div class="list-group">
+                            {% for notification in notifications %}
+                                <div class="list-group-item list-group-item-action {% if not notification.is_read %}list-group-item-primary{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-1">{{ notification.title }}</h6>
+                                        <small class="text-muted">{{ notification.created_at|date:"d.m.Y H:i" }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ notification.message }}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <div>
+                                            {% if notification.notification_type == 'order_status' %}
+                                                <span class="badge bg-info">Заказ</span>
+                                            {% elif notification.notification_type == 'chat_message' %}
+                                                <span class="badge bg-primary">Сообщение</span>
+                                            {% elif notification.notification_type == 'product_change' %}
+                                                <span class="badge bg-success">Товар</span>
+                                            {% elif notification.notification_type == 'system' %}
+                                                <span class="badge bg-warning text-dark">Система</span>
+                                            {% endif %}
+                                            {% if not notification.is_read %}
+                                                <span class="badge bg-danger">Новое</span>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            {% if notification.link %}
+                                                <a href="{% url 'mark_notification_as_read' notification.id %}" class="btn btn-sm btn-outline-primary">Перейти</a>
+                                            {% else %}
+                                                <a href="{% url 'mark_notification_as_read' notification.id %}" class="btn btn-sm btn-outline-secondary">Отметить как прочитанное</a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-bell" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">У вас нет уведомлений</h5>
+                            <p class="text-muted">Здесь будут отображаться уведомления о статусе заказов, сообщениях и других событиях</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

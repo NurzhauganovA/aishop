@@ -1,0 +1,182 @@
+[
+    {
+      "model": "products.category",
+      "pk": 1,
+      "fields": {
+        "name": "Электроника",
+        "slug": "elektronika",
+        "parent": null
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 2,
+      "fields": {
+        "name": "Смартфоны",
+        "slug": "smartfony",
+        "parent": 1
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 3,
+      "fields": {
+        "name": "Ноутбуки",
+        "slug": "noutbuki",
+        "parent": 1
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 4,
+      "fields": {
+        "name": "Планшеты",
+        "slug": "planshety",
+        "parent": 1
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 5,
+      "fields": {
+        "name": "Одежда",
+        "slug": "odezhda",
+        "parent": null
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 6,
+      "fields": {
+        "name": "Мужская одежда",
+        "slug": "muzhskaya-odezhda",
+        "parent": 5
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 7,
+      "fields": {
+        "name": "Женская одежда",
+        "slug": "zhenskaya-odezhda",
+        "parent": 5
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 8,
+      "fields": {
+        "name": "Детская одежда",
+        "slug": "detskaya-odezhda",
+        "parent": 5
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 9,
+      "fields": {
+        "name": "Обувь",
+        "slug": "obuv",
+        "parent": null
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 10,
+      "fields": {
+        "name": "Мужская обувь",
+        "slug": "muzhskaya-obuv",
+        "parent": 9
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 11,
+      "fields": {
+        "name": "Женская обувь",
+        "slug": "zhenskaya-obuv",
+        "parent": 9
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 12,
+      "fields": {
+        "name": "Детская обувь",
+        "slug": "detskaya-obuv",
+        "parent": 9
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 13,
+      "fields": {
+        "name": "Дом и сад",
+        "slug": "dom-i-sad",
+        "parent": null
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 14,
+      "fields": {
+        "name": "Мебель",
+        "slug": "mebel",
+        "parent": 13
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 15,
+      "fields": {
+        "name": "Посуда",
+        "slug": "posuda",
+        "parent": 13
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 16,
+      "fields": {
+        "name": "Садовая техника",
+        "slug": "sadovaya-tehnika",
+        "parent": 13
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 17,
+      "fields": {
+        "name": "Красота и здоровье",
+        "slug": "krasota-i-zdorove",
+        "parent": null
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 18,
+      "fields": {
+        "name": "Косметика",
+        "slug": "kosmetika",
+        "parent": 17
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 19,
+      "fields": {
+        "name": "Парфюмерия",
+        "slug": "parfyumeriya",
+        "parent": 17
+      }
+    },
+    {
+      "model": "products.category",
+      "pk": 20,
+      "fields": {
+        "name": "Товары для здоровья",
+        "slug": "tovary-dlya-zdorovya",
+        "parent": 17
+      }
+    }
+  ]

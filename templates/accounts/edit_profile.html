@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование профиля | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Личный кабинет</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
+                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action">Мои заказы</a>
+                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action">Адреса доставки</a>
+                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">Список желаний</a>
+                    <a href="{% url 'notification_list' %}" class="list-group-item list-group-item-action">Уведомления</a>
+                    <a href="{% url 'notification_settings' %}" class="list-group-item list-group-item-action">Настройки уведомлений</a>
+                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action active">Редактировать профиль</a>
+                    <a href="{% url 'change_password' %}" class="list-group-item list-group-item-action">Изменить пароль</a>
+                    {% if user.is_seller %}
+                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Редактирование профиля</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">Имя пользователя</label>
+                            <input type="text" name="username" class="form-control {% if form.username.errors %}is-invalid{% endif %}" id="id_username" value="{{ form.username.value|default:'' }}" required>
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" id="id_email" value="{{ form.email.value|default:'' }}" required>
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_phone_number" class="form-label">Номер телефона</label>
+                            <input type="tel" name="phone_number" class="form-control {% if form.phone_number.errors %}is-invalid{% endif %}" id="id_phone_number" value="{{ form.phone_number.value|default:'' }}">
+                            {% if form.phone_number.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.phone_number.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_first_name" class="form-label">Имя</label>
+                                <input type="text" name="first_name" class="form-control {% if form.first_name.errors %}is-invalid{% endif %}" id="id_first_name" value="{{ form.first_name.value|default:'' }}">
+                                {% if form.first_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.first_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_last_name" class="form-label">Фамилия</label>
+                                <input type="text" name="last_name" class="form-control {% if form.last_name.errors %}is-invalid{% endif %}" id="id_last_name" value="{{ form.last_name.value|default:'' }}">
+                                {% if form.last_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.last_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'profile' %}" class="btn btn-outline-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Адреса доставки | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Личный кабинет</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
+                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action">Мои заказы</a>
+                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action active">Адреса доставки</a>
+                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">Список желаний</a>
+                    <a href="{% url 'notification_list' %}" class="list-group-item list-group-item-action">Уведомления</a>
+                    <a href="{% url 'notification_settings' %}" class="list-group-item list-group-item-action">Настройки уведомлений</a>
+                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action">Редактировать профиль</a>
+                    <a href="{% url 'change_password' %}" class="list-group-item list-group-item-action">Изменить пароль</a>
+                    {% if user.is_seller %}
+                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Адреса доставки</h5>
+                    <a href="{% url 'add_address' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Добавить адрес
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if addresses %}
+                        <div class="row">
+                            {% for address in addresses %}
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ address.title }}</h5>
+                                            <p class="card-text mb-1"><strong>Имя:</strong> {{ address.full_name }}</p>
+                                            <p class="card-text mb-1"><strong>Телефон:</strong> {{ address.phone }}</p>
+                                            <p class="card-text mb-1"><strong>Адрес:</strong> {{ address.address_line1 }}</p>
+                                            {% if address.address_line2 %}
+                                                <p class="card-text mb-1"><strong>Дополнительный адрес:</strong> {{ address.address_line2 }}</p>
+                                            {% endif %}
+                                            <p class="card-text mb-1"><strong>Город:</strong> {{ address.city }}</p>
+                                            {% if address.postal_code %}
+                                                <p class="card-text mb-1"><strong>Почтовый индекс:</strong> {{ address.postal_code }}</p>
+                                            {% endif %}
+                                            {% if address.is_default %}
+                                                <p class="card-text"><span class="badge bg-success">Адрес по умолчанию</span></p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-footer">
+                                            <div class="btn-group">
+                                                <a href="{% url 'edit_address' address.id %}" class="btn btn-sm btn-outline-primary">Изменить</a>
+                                                {% if not address.is_default %}
+                                                    <a href="{% url 'set_default_address' address.id %}" class="btn btn-sm btn-outline-success">По умолчанию</a>
+                                                {% endif %}
+                                                <a href="{% url 'delete_address' address.id %}" class="btn btn-sm btn-outline-danger">Удалить</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-geo-alt" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">У вас пока нет сохраненных адресов</h5>
+                            <p class="text-muted">Добавьте адрес доставки для быстрого оформления заказов</p>
+                            <a href="{% url 'add_address' %}" class="btn btn-primary mt-3">Добавить адрес</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

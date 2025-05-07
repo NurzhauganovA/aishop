@@ -1,0 +1,362 @@
+{% extends 'base.html' %}
+
+{% block title %}Добавление товара | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Панель продавца</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Обзор</a>
+                    <a href="{% url 'seller_products' %}" class="list-group-item list-group-item-action">Мои товары</a>
+                    <a href="{% url 'seller_product_add' %}" class="list-group-item list-group-item-action active">Добавить товар</a>
+                    <a href="{% url 'seller_orders' %}" class="list-group-item list-group-item-action">Заказы</a>
+                    <a href="{% url 'chat_list' %}" class="list-group-item list-group-item-action">Сообщения</a>
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Вернуться в профиль</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Добавление нового товара</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="productForm">
+                        {% csrf_token %}
+                        
+                        <!-- Основная информация -->
+                        <h6 class="mb-3">Основная информация</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_name" class="form-label">Название товара *</label>
+                                <input type="text" id="id_name" name="name" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_category" class="form-label">Категория *</label>
+                                <select id="id_category" name="category" class="form-select" required>
+                                    <option value="">Выберите категорию</option>
+                                    {% for category in categories %}
+                                        <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_price" class="form-label">Цена (₸) *</label>
+                                <input type="number" id="id_price" name="price" class="form-control" min="0" step="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_old_price" class="form-label">Старая цена (₸)</label>
+                                <input type="number" id="id_old_price" name="old_price" class="form-control" min="0" step="0.01">
+                                <small class="text-muted">Оставьте пустым, если нет скидки</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_stock" class="form-label">Количество в наличии *</label>
+                                <input type="number" id="id_stock" name="stock" class="form-control" min="0" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_status" class="form-label">Статус *</label>
+                                <select id="id_status" name="status" class="form-select" required>
+                                    <option value="active">Активен</option>
+                                    <option value="archive">Архив</option>
+                                    <option value="out_of_stock">Нет в наличии</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Описание -->
+                        <h6 class="mb-3">Описание товара</h6>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="id_description" class="form-label">Описание *</label>
+                                <button type="button" id="generateDescription" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-magic"></i> Сгенерировать описание с ИИ
+                                </button>
+                            </div>
+                            <textarea id="id_description" name="description" class="form-control" rows="5" required></textarea>
+                        </div>
+                        
+                        <!-- Характеристики -->
+<!-- Характеристики -->
+<h6 class="mb-3">Характеристики товара</h6>
+<div class="mb-4" id="attributes-container">
+    <div class="row attribute-row mb-2">
+        <div class="col-md-5">
+            <input type="text" name="attribute_name[]" class="form-control" placeholder="Название характеристики">
+        </div>
+        <div class="col-md-5">
+            <input type="text" name="attribute_value[]" class="form-control" placeholder="Значение">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-danger remove-attribute">Удалить</button>
+        </div>
+    </div>
+</div>
+<div class="mb-4">
+    <button type="button" id="add-attribute" class="btn btn-outline-secondary">
+        <i class="bi bi-plus-circle"></i> Добавить характеристику
+    </button>
+</div>
+                        <!-- Изображения и видео -->
+                        <h6 class="mb-3">Медиафайлы</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_images" class="form-label">Изображения товара *</label>
+                                <input type="file" id="id_images" name="images" class="form-control" multiple accept="image/*" required>
+                                <small class="text-muted">Можно загрузить несколько изображений. Первое будет основным.</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_videos" class="form-label">Видео товара</label>
+                                <input type="file" id="id_videos" name="videos" class="form-control" multiple accept="video/*">
+                                <small class="text-muted">Необязательно. Рекомендуемый формат - MP4.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-outline-secondary me-md-2" onclick="window.history.back()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Добавить товар</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно генерации описания -->
+<div class="modal fade" id="generateDescriptionModal" tabindex="-1" aria-labelledby="generateDescriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateDescriptionModalLabel">Генерация описания с помощью ИИ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="product-name-ai" class="form-label">Название товара</label>
+                    <input type="text" class="form-control" id="product-name-ai">
+                </div>
+                
+                <div id="ai-attributes-container">
+                    <div class="row mb-2">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control ai-attribute-name" placeholder="Название характеристики">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" class="form-control ai-attribute-value" placeholder="Значение">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger remove-ai-attribute">Удалить</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <button type="button" id="add-ai-attribute" class="btn btn-outline-secondary">
+                        <i class="bi bi-plus-circle"></i> Добавить характеристику
+                    </button>
+                </div>
+                
+                <div id="ai-result-container" style="display: none;">
+                    <hr>
+                    <h6>Сгенерированное описание:</h6>
+                    <div class="p-3 bg-light rounded" id="ai-result"></div>
+                </div>
+                
+                <div id="ai-loading" style="display: none;">
+                    <div class="d-flex justify-content-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                    <p class="text-center mt-2">ИИ генерирует описание...</p>
+                </div>
+                
+                <div id="ai-error" class="alert alert-danger" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="generate-ai-description">Сгенерировать</button>
+                <button type="button" class="btn btn-success" id="use-ai-description" style="display: none;">Использовать это описание</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    // Добавление характеристик
+    const attributesContainer = document.getElementById('attributes-container');
+    const addAttributeBtn = document.getElementById('add-attribute');
+    
+    // Функция для добавления новой строки атрибута
+    addAttributeBtn.addEventListener('click', function() {
+        const attributeRow = document.createElement('div');
+        attributeRow.className = 'row attribute-row mb-2';
+        attributeRow.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" name="attribute_name[]" class="form-control" placeholder="Название характеристики">
+            </div>
+            <div class="col-md-5">
+                <input type="text" name="attribute_value[]" class="form-control" placeholder="Значение">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-danger remove-attribute">Удалить</button>
+            </div>
+        `;
+        attributesContainer.appendChild(attributeRow);
+        
+        // Добавляем обработчик для кнопки удаления
+        attributeRow.querySelector('.remove-attribute').addEventListener('click', function() {
+            attributeRow.remove();
+        });
+    });
+    
+    // Обработчики для уже существующих кнопок удаления
+    document.querySelectorAll('.remove-attribute').forEach(button => {
+        button.addEventListener('click', function() {
+            // Проверяем, что это не последняя строка атрибутов
+            if (attributesContainer.querySelectorAll('.attribute-row').length > 1) {
+                this.closest('.attribute-row').remove();
+            }
+        });
+    });
+    
+    // Генерация описания с ИИ
+    const generateDescriptionBtn = document.getElementById('generateDescription');
+    const generateDescriptionModal = new bootstrap.Modal(document.getElementById('generateDescriptionModal'));
+    const productNameAI = document.getElementById('product-name-ai');
+    const generateAIDescriptionBtn = document.getElementById('generate-ai-description');
+    const useAIDescriptionBtn = document.getElementById('use-ai-description');
+    const aiResultContainer = document.getElementById('ai-result-container');
+    const aiResult = document.getElementById('ai-result');
+    const aiLoading = document.getElementById('ai-loading');
+    const aiError = document.getElementById('ai-error');
+    const aiAttributesContainer = document.getElementById('ai-attributes-container');
+    const addAIAttributeBtn = document.getElementById('add-ai-attribute');
+    
+    // Открытие модального окна генерации описания
+    if (generateDescriptionBtn) {
+        generateDescriptionBtn.addEventListener('click', function() {
+            productNameAI.value = document.getElementById('id_name').value;
+            generateDescriptionModal.show();
+        });
+    }
+    
+    // Добавление характеристик в модальном окне
+    if (addAIAttributeBtn) {
+        addAIAttributeBtn.addEventListener('click', function() {
+            const attributeRow = document.createElement('div');
+            attributeRow.className = 'row mb-2';
+            attributeRow.innerHTML = `
+                <div class="col-md-5">
+                    <input type="text" class="form-control ai-attribute-name" placeholder="Название характеристики">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control ai-attribute-value" placeholder="Значение">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger remove-ai-attribute">Удалить</button>
+                </div>
+            `;
+            aiAttributesContainer.appendChild(attributeRow);
+            
+            // Добавляем обработчик для кнопки удаления
+            attributeRow.querySelector('.remove-ai-attribute').addEventListener('click', function() {
+                attributeRow.remove();
+            });
+        });
+    }
+    
+    // Обработчики для уже существующих кнопок удаления в модальном окне
+    document.querySelectorAll('.remove-ai-attribute').forEach(button => {
+        button.addEventListener('click', function() {
+            this.closest('.row').remove();
+        });
+    });
+    
+    // Генерация описания
+    if (generateAIDescriptionBtn) {
+        generateAIDescriptionBtn.addEventListener('click', function() {
+            const productName = productNameAI.value.trim();
+            
+            if (!productName) {
+                aiError.textContent = 'Пожалуйста, введите название товара';
+                aiError.style.display = 'block';
+                return;
+            }
+            
+            // Собираем характеристики
+            const attributes = {};
+            document.querySelectorAll('#ai-attributes-container .row').forEach(row => {
+                const nameInput = row.querySelector('.ai-attribute-name');
+                const valueInput = row.querySelector('.ai-attribute-value');
+                
+                if (nameInput && valueInput && nameInput.value.trim() && valueInput.value.trim()) {
+                    attributes[nameInput.value.trim()] = valueInput.value.trim();
+                }
+            });
+            
+            // Скрываем ошибки и результат, показываем загрузку
+            aiError.style.display = 'none';
+            aiResultContainer.style.display = 'none';
+            aiLoading.style.display = 'block';
+            useAIDescriptionBtn.style.display = 'none';
+            
+            // Отправляем запрос на сервер для генерации описания
+            // Получаем CSRF токен из meta тега
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            
+            fetch('/seller/generate-description/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    name: productName,
+                    attributes: attributes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                aiLoading.style.display = 'none';
+                
+                if (data.status === 'success') {
+                    aiResult.textContent = data.description;
+                    aiResultContainer.style.display = 'block';
+                    useAIDescriptionBtn.style.display = 'inline-block';
+                } else {
+                    aiError.textContent = data.message || 'Произошла ошибка при генерации описания';
+                    aiError.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                aiLoading.style.display = 'none';
+                aiError.textContent = 'Произошла ошибка при генерации описания: ' + error.message;
+                aiError.style.display = 'block';
+                console.error('Error:', error);
+            });
+        });
+    }
+    
+    // Использование сгенерированного описания
+    if (useAIDescriptionBtn) {
+        useAIDescriptionBtn.addEventListener('click', function() {
+            document.getElementById('id_description').value = aiResult.textContent;
+            generateDescriptionModal.hide();
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% endblock %}

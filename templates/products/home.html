@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Популярные товары -->
+    <section class="featured-products mb-5">
+        <h2 class="mb-4">Популярные товары</h2>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+            {% for product in featured_products %}
+                <div class="col">
+                    <div class="card h-100 product-card">
+                        {% if product.images.exists %}
+                            <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                        {% else %}
+                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <h5 class="card-title">{{ product.name }}</h5>
+                            <div class="rating mb-2">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.rating %}
+                                        <i class="bi bi-star-fill"></i>
+                                    {% elif forloop.counter <= product.rating|add:"0.5" %}
+                                        <i class="bi bi-star-half"></i>
+                                    {% else %}
+                                        <i class="bi bi-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
+                            </div>
+                            <p class="product-price">{{ product.price }} ₸</p>
+                            {% if product.old_price %}
+                                <p>
+                                    <span class="product-old-price">{{ product.old_price }} ₸</span>
+                                    <span class="product-discount">-{{ product.discount_percentage }}%</span>
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary w-100">Подробнее</a>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12 text-center">
+                    <p>Пока нет товаров для отображения.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+    
+    <!-- Популярные категории -->
+    <section class="top-categories mb-5">
+        <h2 class="mb-4">Популярные категории</h2>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-4">
+            {% for category in top_categories %}
+                <div class="col">
+                    <a href="{% url 'product_list' %}?category={{ category.slug }}" class="text-decoration-none">
+                        <div class="card h-100 text-center category-card">
+                            {% if category.image %}
+                                <img src="{{ category.image.url }}" class="card-img-top category-image" alt="{{ category.name }}">
+                            {% else %}
+                                <div class="category-image-placeholder d-flex justify-content-center align-items-center bg-light">
+                                    <i class="bi bi-box text-muted" style="font-size: 2rem;"></i>
+                                </div>
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title">{{ category.name }}</h5>
+                                <p class="card-text text-muted">{{ category.product_count }} товаров</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% empty %}
+                <div class="col-12 text-center">
+                    <p>Пока нет категорий для отображения.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+    
+    <!-- Лидеры продаж -->
+    <section class="best-selling mb-5">
+        <h2 class="mb-4">Лидеры продаж</h2>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+            {% for product in best_selling %}
+                <div class="col">
+                    <div class="card h-100 product-card">
+                        {% if product.images.exists %}
+                            <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                        {% else %}
+                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <h5 class="card-title">{{ product.name }}</h5>
+                            <div class="rating mb-2">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.rating %}
+                                        <i class="bi bi-star-fill"></i>
+                                    {% elif forloop.counter <= product.rating|add:"0.5" %}
+                                        <i class="bi bi-star-half"></i>
+                                    {% else %}
+                                        <i class="bi bi-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
+                            </div>
+                            <p class="product-price">{{ product.price }} ₸</p>
+                            {% if product.old_price %}
+                                <p>
+                                    <span class="product-old-price">{{ product.old_price }} ₸</span>
+                                    <span class="product-discount">-{{ product.discount_percentage }}%</span>
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary w-100">Подробнее</a>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12 text-center">
+                    <p>Пока нет товаров для отображения.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+    
+    <!-- Товары с лучшими оценками -->
+    <section class="top-rated mb-5">
+        <h2 class="mb-4">Лучшие оценки</h2>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+            {% for product in top_rated %}
+                <div class="col">
+                    <div class="card h-100 product-card">
+                        {% if product.images.exists %}
+                            <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                        {% else %}
+                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <h5 class="card-title">{{ product.name }}</h5>
+                            <div class="rating mb-2">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.rating %}
+                                        <i class="bi bi-star-fill"></i>
+                                    {% elif forloop.counter <= product.rating|add:"0.5" %}
+                                        <i class="bi bi-star-half"></i>
+                                    {% else %}
+                                        <i class="bi bi-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
+                            </div>
+                            <p class="product-price">{{ product.price }} ₸</p>
+                            {% if product.old_price %}
+                                <p>
+                                    <span class="product-old-price">{{ product.old_price }} ₸</span>
+                                    <span class="product-discount">-{{ product.discount_percentage }}%</span>
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary w-100">Подробнее</a>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12 text-center">
+                    <p>Пока нет товаров для отображения.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

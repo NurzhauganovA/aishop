@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">Регистрация нового аккаунта</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">Имя пользователя</label>
+                            <input type="text" name="username" id="id_username" class="form-control {% if form.username.errors %}is-invalid{% endif %}" value="{{ form.username.value|default:'' }}" required>
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Обязательное поле. 150 символов или меньше. Буквы, цифры и символы @/./+/-/_.</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">Email</label>
+                            <input type="email" name="email" id="id_email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" value="{{ form.email.value|default:'' }}" required>
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_phone_number" class="form-label">Номер телефона</label>
+                            <input type="tel" name="phone_number" id="id_phone_number" class="form-control {% if form.phone_number.errors %}is-invalid{% endif %}" value="{{ form.phone_number.value|default:'' }}" placeholder="+7XXXXXXXXXX" required>
+                            {% if form.phone_number.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.phone_number.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_password1" class="form-label">Пароль</label>
+                            <input type="password" name="password1" id="id_password1" class="form-control {% if form.password1.errors %}is-invalid{% endif %}" required>
+                            {% if form.password1.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.password1.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                <ul>
+                                    <li>Пароль не может быть слишком похож на другую вашу личную информацию.</li>
+                                    <li>Пароль должен содержать как минимум 8 символов.</li>
+                                    <li>Пароль не может быть часто используемым паролем.</li>
+                                    <li>Пароль не может состоять только из цифр.</li>
+                                </ul>
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_password2" class="form-label">Подтверждение пароля</label>
+                            <input type="password" name="password2" id="id_password2" class="form-control {% if form.password2.errors %}is-invalid{% endif %}" required>
+                            {% if form.password2.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.password2.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Для подтверждения введите пароль ещё раз.</small>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="terms" required>
+                            <label class="form-check-label" for="terms">Я согласен с <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">условиями использования</a></label>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center">
+                    <p class="mb-0">Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с условиями использования -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="termsModalLabel">Условия использования</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Общие положения</h6>
+                <p>Настоящие Условия использования (далее - "Условия") регулируют отношения между пользователем и администрацией Маркетплейса.</p>
+                
+                <h6>2. Регистрация</h6>
+                <p>Для использования всех функций Маркетплейса необходимо зарегистрироваться. Регистрируясь, вы соглашаетесь предоставить достоверную информацию о себе.</p>
+                
+                <h6>3. Правила использования</h6>
+                <p>Пользователь обязуется не использовать Маркетплейс для незаконной деятельности и не нарушать права других пользователей.</p>
+                
+                <h6>4. Конфиденциальность</h6>
+                <p>Мы обрабатываем ваши персональные данные в соответствии с нашей Политикой конфиденциальности.</p>
+                
+                <h6>5. Изменения условий</h6>
+                <p>Администрация Маркетплейса оставляет за собой право изменять настоящие Условия в любое время. Продолжая использовать Маркетплейс после внесения изменений, вы соглашаетесь с новыми условиями.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Я согласен</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
