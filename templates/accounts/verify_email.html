@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Подтверждение email | Маркетплейс{% endblock %}
+{% block content %}
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="card-title mb-0">Подтверждение email</h4>
+                    </div>
+                    <div class="card-body text-center">
+                        {% if success %}
+                            <div class="mb-4">
+                                <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                            </div>
+                            <h5 class="mb-3">Email успешно подтвержден!</h5>
+                            <p>Теперь вы можете полноценно пользоваться всеми функциями маркетплейса.</p>
+                            <div class="d-grid gap-2 mt-4">
+                                <a href="{% url 'login' %}" class="btn btn-primary">Войти в аккаунт</a>
+                            </div>
+                        {% else %}
+                            <div class="mb-4">
+                                <i class="bi bi-x-circle-fill text-danger" style="font-size: 4rem;"></i>
+                            </div>
+                            <h5 class="mb-3">Ошибка подтверждения email</h5>
+                            <p>{{ error_message|default:"Ссылка для подтверждения недействительна или срок её действия истёк." }}</p>
+                            <div class="d-grid gap-2 mt-4">
+                                <a href="{% url 'resend_verification' %}" class="btn btn-primary">Отправить ссылку
+                                    повторно</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

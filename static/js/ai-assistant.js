@@ -7,8 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const aiMessageInput = document.getElementById('aiMessageInput');
     const sendAIMessageBtn = document.getElementById('sendAIMessage');
 
-    // WebSocket connection
-    let aiSocket = null;
+    // Conversation ID storage
     let conversationId = localStorage.getItem('aiConversationId');
 
     // Function to open chat with AI
@@ -29,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'success') {
                     conversationId = data.conversation_id;
                     localStorage.setItem('aiConversationId', conversationId);
-                    connectWebSocket();
+                    loadConversationHistory();
                 } else {
                     console.error('Error creating conversation:', data.message);
                 }
@@ -39,150 +38,118 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } else {
             // If conversation ID exists, load history
-            fetch(`/aisha/get_conversation_history/${conversationId}/`)
-            .then(response => {
-                if (!response.ok) {
-                    // If conversation not found, create a new one
-                    localStorage.removeItem('aiConversationId');
-                    openAIChat();
-                    return null;
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.status === 'success') {
-                    // Clear message history
-                    aiChatMessages.innerHTML = '';
-
-                    // Add messages from history
-                    data.messages.forEach(msg => {
-                        const messageClass = msg.role === 'user' ? 'user-message' : 'ai-message';
-                        addMessageToChat(msg.content, messageClass);
-                    });
-
-                    // Scroll to last message
-                    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-
-                    // Connect to WebSocket
-                    connectWebSocket();
-                }
-            })
-            .catch(error => {
-                console.error('Error loading history:', error);
-                // On error create a new conversation
-                localStorage.removeItem('aiConversationId');
-                openAIChat();
-            });
+            loadConversationHistory();
         }
     }
 
-    // Connect to WebSocket
-    function connectWebSocket() {
-        if (conversationId === null) {
-            console.error('Conversation ID not found');
+    // Load conversation history
+    function loadConversationHistory() {
+        if (!conversationId) {
+            console.error('No conversation ID found');
             return;
         }
 
-        if (aiSocket) {
-            aiSocket.close();
-        }
+        fetch(`/aisha/get_conversation_history/${conversationId}/`)
+        .then(response => {
+            if (!response.ok) {
+                // If conversation not found, create a new one
+                localStorage.removeItem('aiConversationId');
+                openAIChat();
+                return null;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.status === 'success') {
+                // Clear message history
+                aiChatMessages.innerHTML = '';
 
-        // Protocol depends on current connection
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const wsUrl = `${wsProtocol}${window.location.host}/ws/aisha/${conversationId}/`;
+                // Add messages from history
+                data.messages.forEach(msg => {
+                    const messageClass = msg.role === 'user' ? 'user-message' : 'ai-message';
+                    addMessageToChat(msg.content, messageClass);
+                });
 
-        console.log("Attempting to connect to WebSocket at:", wsUrl);
-
-        try {
-            aiSocket = new WebSocket(wsUrl);
-
-            aiSocket.onopen = function(e) {
-                console.log('WebSocket connection established');
-                // Enable send button
-                sendAIMessageBtn.disabled = false;
-            };
-
-            aiSocket.onmessage = function(e) {
-                console.log("WebSocket message received:", e.data);
-                try {
-                    const data = JSON.parse(e.data);
-                    const messageClass = data.role === 'user' ? 'user-message' : 'ai-message';
-                    addMessageToChat(data.message, messageClass);
-
-                    // Scroll to last message
-                    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-                } catch (error) {
-                    console.error('Error processing message:', error);
-                }
-            };
-
-            aiSocket.onclose = function(e) {
-                console.log('WebSocket connection closed, code:', e.code, 'reason:', e.reason);
-                // Disable send button
-                sendAIMessageBtn.disabled = true;
-
-                // Try to reconnect after 3 seconds
-                setTimeout(function() {
-                    if (aiAssistantChat.style.display !== 'none') {
-                        connectWebSocket();
-                    }
-                }, 3000);
-            };
-
-            aiSocket.onerror = function(e) {
-                console.error('WebSocket error:', e);
-                // Disable send button
-                sendAIMessageBtn.disabled = true;
-            };
-        } catch (error) {
-            console.error('Error creating WebSocket:', error);
-        }
+                // Scroll to last message
+                aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading history:', error);
+            // On error create a new conversation
+            localStorage.removeItem('aiConversationId');
+            openAIChat();
+        });
     }
 
     // Function to close chat with AI
     function closeAIChat() {
         aiAssistantChat.style.display = 'none';
-
-        // Close WebSocket connection
-        if (aiSocket) {
-            aiSocket.close();
-            aiSocket = null;
-        }
     }
 
     // Function to send message
     function sendAIMessage() {
         const message = aiMessageInput.value.trim();
-        if (!message) return;
+        if (!message || !conversationId) return;
 
-        if (aiSocket && aiSocket.readyState === WebSocket.OPEN) {
-            try {
-                // Send message through WebSocket
-                aiSocket.send(JSON.stringify({
-                    'message': message
-                }));
+        // Add user message to chat
+        addMessageToChat(message, 'user-message');
 
-                // Clear input field
-                aiMessageInput.value = '';
+        // Clear input field
+        aiMessageInput.value = '';
+
+        // Show loading indicator
+        const loadingMessage = document.createElement('div');
+        loadingMessage.className = 'message ai-message';
+        loadingMessage.innerHTML = '<div class="message-content">Думаю...</div>';
+        loadingMessage.id = 'ai-loading-message';
+        aiChatMessages.appendChild(loadingMessage);
+
+        // Scroll to last message
+        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+
+        // Send message to server
+        fetch('/aisha/send_message/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                conversation_id: conversationId,
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Remove loading indicator
+            const loadingMessage = document.getElementById('ai-loading-message');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+
+            if (data.status === 'success') {
+                // Add AI response to chat
+                addMessageToChat(data.response, 'ai-message');
 
                 // Scroll to last message
                 aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-            } catch (error) {
-                console.error('Error sending message:', error);
-                alert('Failed to send message. Please refresh the page and try again.');
+            } else {
+                console.error('Error sending message:', data.message);
+                addMessageToChat('Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.', 'ai-message');
             }
-        } else {
-            console.error('WebSocket not connected, state:', aiSocket ? aiSocket.readyState : 'null');
-            // Try to reconnect
-            connectWebSocket();
-            setTimeout(function() {
-                if (aiSocket && aiSocket.readyState === WebSocket.OPEN) {
-                    sendAIMessage();
-                } else {
-                    alert('Failed to connect to server. Please refresh the page and try again.');
-                }
-            }, 1000);
-        }
+        })
+        .catch(error => {
+            console.error('Error sending message:', error);
+
+            // Remove loading indicator
+            const loadingMessage = document.getElementById('ai-loading-message');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+
+            addMessageToChat('Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.', 'ai-message');
+        });
     }
 
     // Function to add message to chat
@@ -191,6 +158,9 @@ document.addEventListener('DOMContentLoaded', function() {
         messageElement.className = `message ${messageClass}`;
         messageElement.innerHTML = `<div class="message-content">${message}</div>`;
         aiChatMessages.appendChild(messageElement);
+
+        // Scroll to last message
+        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
     }
 
     // Get CSRF token from cookies
@@ -245,13 +215,6 @@ document.addEventListener('DOMContentLoaded', function() {
             sendAIMessage();
         });
     }
-
-    // Periodically check if session has ended
-    setInterval(function() {
-        if (aiAssistantChat.style.display !== 'none' && aiSocket && aiSocket.readyState !== WebSocket.OPEN) {
-            connectWebSocket();
-        }
-    }, 5000);
 
     // Random AI hints popup
     function showRandomAIHint() {
