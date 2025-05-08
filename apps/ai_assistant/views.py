@@ -96,21 +96,39 @@ def search_products(request):
     if price_range.get('max') is not None:
         products = products.filter(price__lte=price_range['max'])
 
+    # Применяем дополнительные фильтры
+    filters = search_params.get('filters', {})
+    for param, value in filters.items():
+        # Здесь можно добавить более сложную логику фильтрации
+        if param and value:
+            products = products.filter(attributes__name__icontains=param, attributes__value__icontains=value)
+
+    # Пагинация результатов
+    paginator = Paginator(products, 12)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     # Формируем результаты
-    results = [
-        {
+    results = []
+    for product in page_obj:
+        results.append({
             'id': product.id,
             'name': product.name,
-            'url': product.get_absolute_url(),
+            'slug': product.slug,
             'price': str(product.price),
+            'old_price': str(product.old_price) if product.old_price else None,
             'image': product.images.first().image.url if product.images.exists() else None,
-        }
-        for product in products
-    ]
+            'rating': product.rating,
+            'reviews_count': product.reviews.count(),
+            'url': product.get_absolute_url()
+        })
 
     return JsonResponse({
         'status': 'success',
-        'results': results
+        'results': results,
+        'total': paginator.count,
+        'pages': paginator.num_pages,
+        'current_page': page_obj.number
     })
 
 

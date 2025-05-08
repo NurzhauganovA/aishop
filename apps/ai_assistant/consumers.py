@@ -64,41 +64,38 @@ class AIAssistantConsumer(AsyncWebsocketConsumer):
             # Обработка запроса в ИИ
             ai_response = await database_sync_to_async(chat_with_ai_assistant)(user, message, conversation_history)
 
-            # Пытаемся определить, является ли ответ JSON для результатов поиска
+            # Проверяем формат ответа
+            is_json_response = False
+            search_results = None
+
             try:
+                # Проверяем, может ли ответ быть распарсен как JSON
                 if ai_response.startswith('{') and ai_response.endswith('}'):
-                    # Это похоже на JSON - попытка распарсить
                     search_results = json.loads(ai_response)
-
-                    # Сохраняем сообщение от ИИ
-                    await self.save_message(f"Вот результаты по вашему запросу:", 'ai')
-
-                    # Отправляем результаты поиска
-                    await self.channel_layer.group_send(
-                        self.room_group_name,
-                        {
-                            'type': 'search_results',
-                            'results': search_results
-                        }
-                    )
-                else:
-                    # Это текстовый ответ
-                    ai_message = await self.save_message(ai_response, 'ai')
-
-                    # Отправка ответа от ИИ в группу
-                    await self.channel_layer.group_send(
-                        self.room_group_name,
-                        {
-                            'type': 'chat_message',
-                            'message': ai_response,
-                            'role': 'ai',
-                            'message_id': ai_message.id
-                        }
-                    )
+                    is_json_response = True
+                    logger.info(f"Обнаружен JSON-ответ: {search_results}")
             except json.JSONDecodeError:
-                # Если не удалось распарсить как JSON, отправляем как обычное сообщение
+                # Если это не валидный JSON, обрабатываем как текст
+                is_json_response = False
+                logger.info("Ответ AI не является JSON форматом")
+
+            if is_json_response and search_results:
+                # Сохраняем сообщение от ИИ о результатах поиска
+                await self.save_message(f"Вот результаты по вашему запросу:", 'ai')
+
+                # Отправляем результаты поиска
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'search_results',
+                        'results': search_results
+                    }
+                )
+            else:
+                # Это обычный текстовый ответ
                 ai_message = await self.save_message(ai_response, 'ai')
 
+                # Отправка ответа от ИИ в группу
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -133,6 +130,7 @@ class AIAssistantConsumer(AsyncWebsocketConsumer):
 
     async def search_results(self, event):
         results = event['results']
+        logger.info(f"Результаты поиска отправлены: {results}")
 
         await self.send(text_data=json.dumps({
             'status': 'success',
@@ -147,6 +145,9 @@ class AIAssistantConsumer(AsyncWebsocketConsumer):
             role=role,
             content=content
         )
+
+        logger.info(f"Сообщение сохранено: {content}")
+
         return message
 
     @database_sync_to_async

@@ -211,3 +211,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'nurbekulyzhandos@gmail.com'
 EMAIL_HOST_PASSWORD = 'ovey cfsw kbvx fpnb'
 DEFAULT_FROM_EMAIL = 'nurbekulyzhandos@gmail.com'
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost',
+    'https://9611-2-132-128-30.ngrok-free.app/'
+]

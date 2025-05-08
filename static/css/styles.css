@@ -150,15 +150,16 @@ main {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background-color: #3498db;
+    background-color: var(--primary-color);
     color: white;
     border: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s, background-color 0.3s;
 }
 
 .ai-assistant-button:hover {
@@ -167,30 +168,27 @@ main {
 }
 
 .ai-assistant-chat {
-    position: fixed;
-    bottom: 90px;
-    right: 20px;
+    position: absolute;
+    bottom: 80px;
+    right: 0;
     width: 350px;
     height: 500px;
     background-color: white;
     border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     display: flex;
+    flex-direction: column;
     overflow: hidden;
-    z-index: 9999999;
+    display: none;
 }
 
 .chat-header {
     padding: 15px;
-    background-color: #3498db;
+    background-color: var(--primary-color);
     color: white;
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.chat-header h5 {
-    margin: 0;
 }
 
 .chat-messages {
@@ -215,41 +213,39 @@ main {
 .message-content {
     padding: 10px;
     border-radius: 10px;
-    display: inline-block;
+    background-color: #f1f1f1;
 }
 
 .user-message .message-content {
-    background-color: #e1f5fe;
+    background-color: var(--primary-color);
+    color: white;
 }
 
 .ai-message .message-content {
-    background-color: #f5f5f5;
+    background-color: #f1f1f1;
+    color: var(--dark-color);
 }
 
 .chat-input {
-    padding: 10px;
-    border-top: 1px solid #eee;
+    padding: 15px;
     display: flex;
+    border-top: 1px solid #eee;
 }
 
 .chat-input input {
     flex: 1;
     padding: 10px;
     border: 1px solid #ddd;
-    border-radius: 20px;
+    border-radius: 5px;
     margin-right: 10px;
 }
 
 .chat-input button {
-    background-color: #3498db;
+    background-color: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    border-radius: 5px;
+    padding: 0 15px;
     cursor: pointer;
 }
 
@@ -260,7 +256,7 @@ main {
         bottom: 70px;
         right: 0;
     }
-    
+
     .product-image {
         height: 150px;
     }
@@ -272,7 +268,7 @@ main {
         height: 50px;
         font-size: 20px;
     }
-    
+
     .ai-assistant-chat {
         width: calc(100vw - 40px);
         bottom: 60px;
@@ -314,6 +310,28 @@ main {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.ai-assistant-chat {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 350px;
+    height: 500px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0);
+    transform-origin: bottom right;
+    transition: transform 0.3s ease;
+    z-index: 999;
+}
+
+.ai-assistant-chat.open {
+    transform: scale(1);
+}
+
 .chat-header {
     padding: 15px;
     background-color: #3498db;
@@ -372,19 +390,6 @@ main {
     border: 1px solid #ddd;
     border-radius: 20px;
     margin-right: 10px;
-}
-
-.chat-input button {
-    background-color: #3498db;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
 }
 
 .chat-input button {
