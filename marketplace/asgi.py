@@ -26,7 +26,7 @@ application = ProtocolTypeRouter({
     'http': http_application,
     'websocket': AuthMiddlewareStack(
         URLRouter(
-            ai_assistant_websocket_urlpatterns
+            combined_websocket_urlpatterns
         )
     )
 })

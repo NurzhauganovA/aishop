@@ -1,252 +1,156 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+import logging
+
 from apps.chat.models import AIConversation, AIMessage
 from .utils import chat_with_ai_assistant
+
+logger = logging.getLogger(__name__)
 
 
 class AIAssistantConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user = self.scope["user"]
-
-        if not self.user.is_authenticated:
-            await self.close()
-            return
-
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
-        self.room_group_name = f'ai_assistant_{self.conversation_id}'
+        self.room_group_name = f'aisha_{self.conversation_id}'
 
-        # Join the group
+        # Присоединение к группе комнаты
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
 
         await self.accept()
-        print(f"WebSocket connection accepted for conversation {self.conversation_id}")
 
     async def disconnect(self, close_code):
-        # Leave group
+        # Покидание группы комнаты
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
-        print(f"WebSocket disconnected for conversation {self.conversation_id}, code: {close_code}")
 
     async def receive(self, text_data):
         try:
             text_data_json = json.loads(text_data)
-            message = text_data_json['message']
-            print(f"Received message from client: {message[:50]}...")
+            message = text_data_json.get('message', '')
 
-            # Save user message
-            user_message = await self.save_user_message(message)
+            if not message.strip():
+                await self.send(text_data=json.dumps({
+                    'status': 'error',
+                    'message': 'Сообщение не может быть пустым'
+                }))
+                return
 
-            # Send message to group
+            user = self.scope['user']
+
+            # Сохранение сообщения пользователя
+            user_message = await self.save_message(message, 'user')
+
+            # Отправка сообщения пользователя в группу
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     'type': 'chat_message',
                     'message': message,
                     'role': 'user',
-                    'message_id': user_message.id,
-                    'timestamp': user_message.created_at.isoformat()
+                    'user_id': user.id,
+                    'message_id': user_message.id
                 }
             )
 
-            # Get conversation history
+            # Получение истории сообщений для контекста
             conversation_history = await self.get_conversation_history()
 
-            # Get AI response
-            ai_response = await database_sync_to_async(chat_with_ai_assistant)(
-                self.user, message, conversation_history
-            )
+            # Обработка запроса в ИИ
+            ai_response = await database_sync_to_async(chat_with_ai_assistant)(user, message, conversation_history)
 
-            # Save AI response
-            ai_message = await self.save_ai_message(ai_response)
+            # Пытаемся определить, является ли ответ JSON для результатов поиска
+            try:
+                if ai_response.startswith('{') and ai_response.endswith('}'):
+                    # Это похоже на JSON - попытка распарсить
+                    search_results = json.loads(ai_response)
 
-            # Send AI response to group
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': ai_response,
-                    'role': 'ai',
-                    'message_id': ai_message.id,
-                    'timestamp': ai_message.created_at.isoformat()
-                }
-            )
-            print(f"Sent AI response to group: {ai_response[:50]}...")
+                    # Сохраняем сообщение от ИИ
+                    await self.save_message(f"Вот результаты по вашему запросу:", 'ai')
+
+                    # Отправляем результаты поиска
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'search_results',
+                            'results': search_results
+                        }
+                    )
+                else:
+                    # Это текстовый ответ
+                    ai_message = await self.save_message(ai_response, 'ai')
+
+                    # Отправка ответа от ИИ в группу
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'chat_message',
+                            'message': ai_response,
+                            'role': 'ai',
+                            'message_id': ai_message.id
+                        }
+                    )
+            except json.JSONDecodeError:
+                # Если не удалось распарсить как JSON, отправляем как обычное сообщение
+                ai_message = await self.save_message(ai_response, 'ai')
+
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'chat_message',
+                        'message': ai_response,
+                        'role': 'ai',
+                        'message_id': ai_message.id
+                    }
+                )
+
+            logger.info(f"Сообщение от пользователя '{user.username}' обработано успешно")
+
         except Exception as e:
-            print(f"Error in receive method: {str(e)}")
-            # Send error message to client
+            logger.error(f"Ошибка при обработке сообщения: {str(e)}")
             await self.send(text_data=json.dumps({
-                'error': str(e),
-                'message': 'Произошла ошибка при обработке вашего сообщения.',
-                'role': 'system'
+                'status': 'error',
+                'message': f'Произошла ошибка: {str(e)}'
             }))
 
     async def chat_message(self, event):
-        try:
-            # Forward message to WebSocket
-            await self.send(text_data=json.dumps({
-                'message': event['message'],
-                'role': event['role'],
-                'message_id': event['message_id'],
-                'timestamp': event['timestamp']
-            }))
-            print(f"Message forwarded to WebSocket: {event['role']} - {event['message'][:50]}...")
-        except Exception as e:
-            print(f"Error in chat_message method: {str(e)}")
+        message = event['message']
+        role = event['role']
+        message_id = event.get('message_id')
 
-    @database_sync_to_async
-    def save_user_message(self, message):
-        conversation, _ = AIConversation.objects.get_or_create(
-            id=self.conversation_id,
-            defaults={'user': self.user}
-        )
-        return AIMessage.objects.create(
-            conversation=conversation,
-            role='user',
-            content=message
-        )
+        logger.info(f"Сообщение отправлено: {message}")
 
-    @database_sync_to_async
-    def save_ai_message(self, message):
-        conversation = AIConversation.objects.get(id=self.conversation_id)
-        return AIMessage.objects.create(
-            conversation=conversation,
-            role='ai',
-            content=message
-        )
-
-    @database_sync_to_async
-    def get_conversation_history(self):
-        conversation = AIConversation.objects.get(id=self.conversation_id)
-        return list(conversation.messages.order_by('created_at'))
-
-
-class AIChatConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        self.user = self.scope["user"]
-
-        if not self.user.is_authenticated:
-            await self.close()
-            return
-
-        self.room_group_name = f'ai_chat_{self.user.id}'
-
-        # Join the group
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
-
-        await self.accept()
-        print(f"WebSocket connection accepted for user {self.user.username}")
         await self.send(text_data=json.dumps({
-            'message': 'Welcome to the AI Chat!',
-            'role': 'system'
+            'message': message,
+            'role': role,
+            'message_id': message_id
         }))
-        print(f"Sent welcome message to user {self.user.username}")
 
-    async def disconnect(self, close_code):
-        # Leave group
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
-        print(f"WebSocket disconnected for user {self.user.username}, code: {close_code}")
+    async def search_results(self, event):
+        results = event['results']
 
-    async def receive(self, text_data):
-        try:
-            text_data_json = json.loads(text_data)
-            message = text_data_json['message']
-            print(f"Received message from client: {message[:50]}...")
-
-            # Save user message
-            user_message = await self.save_user_message(message)
-
-            # Send message to group
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': message,
-                    'role': 'user',
-                    'message_id': user_message.id,
-                    'timestamp': user_message.created_at.isoformat()
-                }
-            )
-
-            # Get AI response
-            ai_response = await database_sync_to_async(chat_with_ai_assistant)(
-                self.user, message, []
-            )
-
-            # Save AI response
-            ai_message = await self.save_ai_message(ai_response)
-
-            # Send AI response to group
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': ai_response,
-                    'role': 'ai',
-                    'message_id': ai_message.id,
-                    'timestamp': ai_message.created_at.isoformat()
-                }
-            )
-            print(f"Sent AI response to group: {ai_response[:50]}...")
-        except Exception as e:
-            print(f"Error in receive method: {str(e)}")
-
-            # Send error message to client
-            await self.send(text_data=json.dumps({
-                'error': str(e),
-                'message': 'Произошла ошибка при обработке вашего сообщения.',
-                'role': 'system'
-            }))
-
-    async def chat_message(self, event):
-        try:
-            # Forward message to WebSocket
-            await self.send(text_data=json.dumps({
-                'message': event['message'],
-                'role': event['role'],
-                'message_id': event['message_id'],
-                'timestamp': event['timestamp']
-            }))
-            print(f"Message forwarded to WebSocket: {event['role']} - {event['message'][:50]}...")
-        except Exception as e:
-            print(f"Error in chat_message method: {str(e)}")
+        await self.send(text_data=json.dumps({
+            'status': 'success',
+            'results': results
+        }))
 
     @database_sync_to_async
-    def save_user_message(self, message):
-        conversation, _ = AIConversation.objects.get_or_create(
-            user=self.user
-        )
-        return AIMessage.objects.create(
+    def save_message(self, content, role):
+        conversation = AIConversation.objects.get(id=self.conversation_id)
+        message = AIMessage.objects.create(
             conversation=conversation,
-            role='user',
-            content=message
+            role=role,
+            content=content
         )
-
-    @database_sync_to_async
-    def save_ai_message(self, message):
-        conversation = AIConversation.objects.get(user=self.user)
-        return AIMessage.objects.create(
-            conversation=conversation,
-            role='ai',
-            content=message
-        )
+        return message
 
     @database_sync_to_async
     def get_conversation_history(self):
-        conversation = AIConversation.objects.get(user=self.user)
-        return list(conversation.messages.order_by('created_at'))
-
-    @database_sync_to_async
-    def get_conversation(self):
-        return AIConversation.objects.get(user=self.user)
+        conversation = AIConversation.objects.get(id=self.conversation_id)
+        # Получаем последние 10 сообщений (или меньше) для контекста
+        return conversation.messages.order_by('-created_at')[:10][::-1]

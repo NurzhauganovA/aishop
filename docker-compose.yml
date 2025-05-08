@@ -63,7 +63,7 @@ services:
 
   daphne:
     build: .
-    command: daphne -p 8000 marketplace.asgi:application
+    command: daphne -b 0.0.0.0 -p 8000 marketplace.asgi:application
     volumes:
       - .:/app
       - static_volume:/app/static

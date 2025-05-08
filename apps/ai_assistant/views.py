@@ -4,14 +4,14 @@ from django.http import JsonResponse
 from django.db.models import Q
 from django.utils import timezone
 from django.core.paginator import Paginator
-import json
-import uuid
 
 from .models import AISearchQuery, AIRecommendation
 from apps.chat.models import AIConversation, AIMessage
 from .utils import chat_with_ai_assistant, search_products_with_ai, generate_ai_product_description
 from apps.products.models import Product, Category
 from apps.user_activities.models import UserActivity
+import json
+import uuid
 
 
 @login_required
@@ -38,6 +38,9 @@ def create_conversation(request):
 @login_required
 def get_conversation_history(request, conversation_id):
     try:
+        # Используем модель AIConversation из apps.chat.models
+        from apps.chat.models import AIConversation
+
         conversation = AIConversation.objects.get(id=conversation_id, user=request.user)
         messages = conversation.messages.all().order_by('created_at')
 
@@ -55,54 +58,6 @@ def get_conversation_history(request, conversation_id):
         })
     except AIConversation.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Диалог не найден'}, status=404)
-
-
-@login_required
-def send_message(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            conversation_id = data.get('conversation_id')
-            message = data.get('message')
-
-            if not conversation_id or not message:
-                return JsonResponse({'status': 'error', 'message': 'Отсутствуют обязательные параметры'}, status=400)
-
-            # Получаем диалог
-            try:
-                conversation = AIConversation.objects.get(id=conversation_id, user=request.user)
-            except AIConversation.DoesNotExist:
-                return JsonResponse({'status': 'error', 'message': 'Диалог не найден'}, status=404)
-
-            # Сохраняем сообщение пользователя
-            user_message = AIMessage.objects.create(
-                conversation=conversation,
-                role='user',
-                content=message
-            )
-
-            # Получаем историю сообщений
-            conversation_history = list(conversation.messages.order_by('created_at'))
-
-            # Получаем ответ от ИИ
-            ai_response = chat_with_ai_assistant(request.user, message, conversation_history)
-
-            # Сохраняем ответ ИИ
-            ai_message = AIMessage.objects.create(
-                conversation=conversation,
-                role='ai',
-                content=ai_response
-            )
-
-            return JsonResponse({
-                'status': 'success',
-                'response': ai_response
-            })
-
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-    return JsonResponse({'status': 'error', 'message': 'Метод не поддерживается'}, status=405)
 
 
 @login_required
@@ -141,39 +96,21 @@ def search_products(request):
     if price_range.get('max') is not None:
         products = products.filter(price__lte=price_range['max'])
 
-    # Применяем дополнительные фильтры
-    filters = search_params.get('filters', {})
-    for param, value in filters.items():
-        # Здесь можно добавить более сложную логику фильтрации
-        if param and value:
-            products = products.filter(attributes__name__icontains=param, attributes__value__icontains=value)
-
-    # Пагинация результатов
-    paginator = Paginator(products, 12)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
-
     # Формируем результаты
-    results = []
-    for product in page_obj:
-        results.append({
+    results = [
+        {
             'id': product.id,
             'name': product.name,
-            'slug': product.slug,
+            'url': product.get_absolute_url(),
             'price': str(product.price),
-            'old_price': str(product.old_price) if product.old_price else None,
             'image': product.images.first().image.url if product.images.exists() else None,
-            'rating': product.rating,
-            'reviews_count': product.reviews.count(),
-            'url': product.get_absolute_url()
-        })
+        }
+        for product in products
+    ]
 
     return JsonResponse({
         'status': 'success',
-        'results': results,
-        'total': paginator.count,
-        'pages': paginator.num_pages,
-        'current_page': page_obj.number
+        'results': results
     })
 
 

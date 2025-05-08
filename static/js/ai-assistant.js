@@ -100,13 +100,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 sendAIMessageBtn.disabled = false;
             };
 
-            aiSocket.onmessage = function(e) {
+            aiSocket.onmessage = function(event) {
                 try {
-                    const data = JSON.parse(e.data);
-                    const messageClass = data.role === 'user' ? 'user-message' : 'ai-message';
-                    addMessageToChat(data.message, messageClass);
-
-                    // Прокручиваем до последнего сообщения
+                    const data = JSON.parse(event.data);
+                    if (data.status === 'success' && data.results) {
+                        data.results.forEach(item => {
+                            const link = document.createElement('a');
+                            link.href = item.url;
+                            link.textContent = item.name;
+                            link.target = '_blank';
+                            link.className = 'product-link';
+                            aiChatMessages.appendChild(link);
+                        });
+                    } else {
+                        addMessageToChat(data.message, 'ai-message');
+                    }
                     aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
                 } catch (error) {
                     console.error('Ошибка обработки сообщения:', error);

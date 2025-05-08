@@ -1,6 +1,8 @@
 from celery import shared_task
 from django.db.models import Count, Avg
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+
 from .models import AIRecommendation
 from apps.products.models import Product
 from apps.user_activities.models import UserActivity

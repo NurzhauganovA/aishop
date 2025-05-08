@@ -159,7 +159,6 @@ main {
     font-size: 24px;
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s, background-color 0.3s;
 }
 
 .ai-assistant-button:hover {
@@ -177,9 +176,8 @@ main {
     border-radius: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     display: flex;
-    flex-direction: column;
     overflow: hidden;
-    z-index: 999;
+    z-index: 9999999;
 }
 
 .chat-header {
@@ -314,28 +312,6 @@ main {
     font-size: 24px;
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.ai-assistant-chat {
-    position: fixed;
-    bottom: 90px;
-    right: 20px;
-    width: 350px;
-    height: 500px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transform: scale(0);
-    transform-origin: bottom right;
-    transition: transform 0.3s ease;
-    z-index: 999;
-}
-
-.ai-assistant-chat.open {
-    transform: scale(1);
 }
 
 .chat-header {
