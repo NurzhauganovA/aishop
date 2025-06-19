@@ -7,6 +7,8 @@ from django.db.models import Max, Q
 from .models import Conversation, Message
 from apps.products.models import Product
 from apps.accounts.models import CustomUser
+from ..orders.models import Order
+
 
 @login_required
 def chat_list(request):
@@ -77,33 +79,52 @@ def chat_detail(request, conversation_id):
     }
     return render(request, 'chat/chat_detail.html', context)
 
+
 @login_required
 def start_chat(request):
     if request.method == 'POST':
-        product_id = request.POST.get('product_id')
         seller_id = request.POST.get('seller_id')
+        product_id = request.POST.get('product_id', None)
         message_text = request.POST.get('message')
-        
+
         if not message_text:
             messages.error(request, 'Введите сообщение')
-            return redirect('product_detail_by_id', product_id=product_id)  # Исправлено здесь
-        
-        # Проверяем, существует ли продукт и продавец
-        product = get_object_or_404(Product, id=product_id)
+            # Если есть product_id, перенаправляем на страницу товара
+            if product_id:
+                return redirect('product_detail_by_id', product_id=product_id)
+            # Иначе возвращаемся на предыдущую страницу
+            return redirect(request.META.get('HTTP_REFERER', 'home'))
+
+        # Получаем продавца
         seller = get_object_or_404(CustomUser, id=seller_id, role='seller')
-        
+
         # Если пользователь пытается написать сам себе
         if seller == request.user:
             messages.error(request, 'Вы не можете написать сообщение самому себе')
-            return redirect('product_detail_by_id', product_id=product.id)  # Исправлено здесь
-        
-        # Проверяем, существует ли уже диалог
-        conversation, created = Conversation.objects.get_or_create(
+            if product_id:
+                return redirect('product_detail_by_id', product_id=product_id)
+            return redirect(request.META.get('HTTP_REFERER', 'home'))
+
+        # Получаем товар, если указан
+        product = None
+        if product_id:
+            product = get_object_or_404(Product, id=product_id)
+
+        # Проверяем, существует ли уже беседа с этим продавцом и товаром
+        conversation = Conversation.objects.filter(
             buyer=request.user,
             seller=seller,
             product=product
-        )
-        
+        ).first()
+
+        # Если беседы нет, создаем новую
+        if not conversation:
+            conversation = Conversation.objects.create(
+                buyer=request.user,
+                seller=seller,
+                product=product
+            )
+
         # Создаем сообщение
         Message.objects.create(
             conversation=conversation,
@@ -111,8 +132,9 @@ def start_chat(request):
             message_type='text',
             content=message_text
         )
-        
-        messages.success(request, 'Сообщение отправлено')
+
+        # Перенаправляем на страницу беседы
+        messages.success(request, "Сообщение отправлено")
         return redirect('chat_detail', conversation_id=conversation.id)
-    
+
     return redirect('home')

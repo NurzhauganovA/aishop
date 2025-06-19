@@ -179,7 +179,6 @@ main {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    display: none;
 }
 
 .chat-header {
@@ -322,7 +321,7 @@ main {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: scale(0);
+    transform: scale(1) !important;
     transform-origin: bottom right;
     transition: transform 0.3s ease;
     z-index: 999;

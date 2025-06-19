@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Отмена заказа #{{ order.id }} | Маркетплейс{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Боковое меню -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Личный кабинет</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
+                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action active">Мои заказы</a>
+                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action">Адреса доставки</a>
+                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">Список желаний</a>
+                    <a href="{% url 'notification_list' %}" class="list-group-item list-group-item-action">Уведомления</a>
+                    <a href="{% url 'notification_settings' %}" class="list-group-item list-group-item-action">Настройки уведомлений</a>
+                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action">Редактировать профиль</a>
+                    <a href="{% url 'change_password' %}" class="list-group-item list-group-item-action">Изменить пароль</a>
+                    {% if user.is_seller %}
+                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Отмена заказа #{{ order.id }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning mb-4">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Внимание!</strong> Вы собираетесь отменить заказ. Отмена может быть выполнена только для заказов в статусе "Новый" или "В обработке".
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Информация о заказе</h6>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Номер заказа</th>
+                                    <td>{{ order.id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Дата создания</th>
+                                    <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Статус</th>
+                                    <td>
+                                        <span class="badge {% if order.status == 'new' %}bg-info{% elif order.status == 'processing' %}bg-warning text-dark{% endif %}">
+                                            {% if order.status == 'new' %}Новый{% elif order.status == 'processing' %}В обработке{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Сумма заказа</th>
+                                    <td>{{ order.total_price }} ₸</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Товары в заказе</h6>
+                            <ul class="list-group">
+                                {% for item in order.items.all %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ item.product.name }} x {{ item.quantity }}
+                                        <span>{{ item.subtotal }} ₸</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="comment" class="form-label">Причина отмены</label>
+                            <textarea class="form-control" id="comment" name="comment" rows="3" required></textarea>
+                            <div class="form-text">Пожалуйста, укажите причину отмены заказа. Эта информация будет отправлена продавцу.</div>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="confirm_cancel" required>
+                            <label class="form-check-label" for="confirm_cancel">
+                                Я подтверждаю, что хочу отменить заказ
+                            </label>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'order_detail' order.id %}" class="btn btn-outline-secondary me-md-2">Назад к заказу</a>
+                            <button type="submit" class="btn btn-danger" id="cancel_button" disabled>Отменить заказ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const confirmCheckbox = document.getElementById('confirm_cancel');
+        const cancelButton = document.getElementById('cancel_button');
+
+        confirmCheckbox.addEventListener('change', function() {
+            cancelButton.disabled = !this.checked;
+        });
+    });
+</script>
+{% endblock %}
+
+{% endblock %}

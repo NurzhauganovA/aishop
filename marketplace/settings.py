@@ -70,6 +70,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'apps.products.context_processors.cart_items_count',
                 'apps.products.context_processors.wishlist_items_count',
+                'apps.notifications.context_processors.notification_count',
+                'apps.chat.context_processors.unread_messages_count',
             ],
         },
     },
