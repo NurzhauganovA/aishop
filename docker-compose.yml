@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:13
@@ -81,15 +83,24 @@ services:
     image: nginx:1.21
     ports:
       - 80:80
+      - 443:443
     volumes:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - static_volume:/static
-      - media_volume:/media
+      - static_volume:/app/static
+      - media_volume:/app/media
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - web
       - daphne
     networks:
       - marketplace_network
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
 
 networks:
   marketplace_network:

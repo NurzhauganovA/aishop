@@ -11,7 +11,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='sduclubs.asia,www.sduclubs.asia,localhost,127.0.0.1', cast=Csv())
 
 # Application definition
 INSTALLED_APPS = [
@@ -216,5 +216,7 @@ DEFAULT_FROM_EMAIL = 'nurbekulyzhandos@gmail.com'
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
-    'https://9611-2-132-128-30.ngrok-free.app/'
+    'http://127.0.0.1',
+    'https://sduclubs.asia',
+    'https://www.sduclubs.asia'
 ]
