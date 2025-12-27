@@ -7,7 +7,12 @@ from django.core.paginator import Paginator
 
 from .models import AISearchQuery, AIRecommendation
 from apps.chat.models import AIConversation, AIMessage
-from .utils import chat_with_ai_assistant, search_products_with_ai, generate_ai_product_description
+from .utils import (
+    chat_with_ai_assistant,
+    search_products_with_ai,
+    generate_ai_product_description,
+    semantic_vector_search,
+)
 from apps.products.models import Product, Category
 from apps.user_activities.models import UserActivity
 import json
@@ -137,9 +142,22 @@ def search_products(request):
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
 
+        # Если классический поиск ничего не нашел, пробуем семантический
+        vector_hits = []
+        used_vector = False
+
+        if paginator.count == 0:
+            vector_hits = semantic_vector_search(query, max_results=12)
+            used_vector = True
+
+        products_to_iterate = vector_hits if used_vector else page_obj
+        total_count = len(vector_hits) if used_vector else paginator.count
+        total_pages = 1 if used_vector else paginator.num_pages
+        current_page = 1 if used_vector else page_obj.number
+
         # Формируем результаты
         results = []
-        for product in page_obj:
+        for product in products_to_iterate:
             # Безопасно получаем первое изображение
             first_image = product.images.first() if hasattr(product, 'images') else None
             image_url = first_image.image.url if first_image else None
@@ -161,14 +179,15 @@ def search_products(request):
                 'url': getattr(product, 'get_absolute_url', lambda: f'/products/{product.id}/')()
             })
 
-        logger.info(f"Поиск выполнен для запроса '{query}', найдено: {paginator.count} товаров")
+        logger.info(f"Поиск выполнен для запроса '{query}', найдено: {total_count} товаров (vector={used_vector})")
 
         return JsonResponse({
             'status': 'success',
             'results': results,
-            'total': paginator.count,
-            'pages': paginator.num_pages,
-            'current_page': page_obj.number
+            'total': total_count,
+            'pages': total_pages,
+            'current_page': current_page,
+            'used_vector': used_vector,
         })
 
     except Exception as e:

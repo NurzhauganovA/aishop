@@ -29,3 +29,21 @@ class AIRecommendation(models.Model):
     
     def __str__(self):
         return f"Рекомендация для {self.user.username}: {self.reason}"
+
+
+class ProductEmbedding(models.Model):
+    """Хранит эмбеддинги товаров для семантического поиска"""
+
+    product = models.OneToOneField('products.Product', on_delete=models.CASCADE, related_name='embedding')
+    vector = models.JSONField(_('Вектор'), default=list)
+    dim = models.PositiveIntegerField(_('Размерность'), default=0)
+    source_model = models.CharField(_('Модель эмбеддинга'), max_length=100, default='models/embedding-001')
+    created_at = models.DateTimeField(_('Дата создания'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Дата обновления'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('Эмбеддинг товара')
+        verbose_name_plural = _('Эмбеддинги товаров')
+
+    def __str__(self):
+        return f"Эмбеддинг для {self.product.name}"

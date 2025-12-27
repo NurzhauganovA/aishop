@@ -1,14 +1,14 @@
+import math
 import time
+import json
+import logging
 from functools import wraps
 
 import google.generativeai as genai
 from django.conf import settings
 from django.db.models import Q
 
-from .models import AISearchQuery
-import json
-import logging
-
+from .models import AISearchQuery, ProductEmbedding
 from ..products.models import Product, Category
 
 # Настройка логирования
@@ -20,6 +20,7 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 # Модель, которую requested пользователь
 MODEL_NAME = 'gemini-3-flash-preview'  # Если эта модель не доступна, библиотека может выдать ошибку.
 # В таком случае замените на 'gemini-1.5-flash' или 'gemini-2.0-flash-exp'
+EMBEDDING_MODEL_NAME = "models/embedding-001"
 
 
 class RateLimiter:
@@ -116,13 +117,10 @@ def chat_with_ai_assistant(user, message, conversation_history=None):
         отвечай обычным текстом без JSON.
         """
 
-        model = genai.GenerativeModel(
-            MODEL_NAME,
-            system_instruction=system_instruction
-        )
+        model = genai.GenerativeModel(MODEL_NAME)
 
-        # Формирование истории чата для Gemini
-        chat_history = []
+        # Формирование истории чата для Gemini. Для старых версий SDK добавляем системную инструкцию как первый элемент истории.
+        chat_history = [{"role": "user", "parts": [system_instruction]}]
         if conversation_history:
             for msg in conversation_history:
                 role = "user" if msg.role == "user" else "model"
@@ -154,14 +152,24 @@ def chat_with_ai_assistant(user, message, conversation_history=None):
                 json_data = json.loads(json_str)
 
                 if isinstance(json_data, dict) and json_data.get('search_request') == True:
-                    search_results = perform_actual_search(json_data, user)
-                    if search_results:
-                        return format_search_results(search_results)
-                    else:
-                        return "К сожалению, товары по вашему запросу не найдены. Попробуйте изменить критерии поиска."
-                return response_text
+                    search_results = list(perform_actual_search(json_data, user))
+                    vector_hits = semantic_vector_search(message, max_results=5)
+                    combined_results = merge_product_lists(vector_hits, search_results)
+
+                    if combined_results:
+                        return format_search_results(combined_results)
+                    return "К сожалению, товары по вашему запросу не найдены. Попробуйте изменить критерии поиска."
+                else:
+                    # Если ИИ не вернул search_request, попробуем семантический поиск напрямую
+                    vector_hits = semantic_vector_search(message, max_results=5)
+                    if vector_hits:
+                        return format_search_results(vector_hits)
+                    return response_text
         except json.JSONDecodeError:
             logger.warning(f"Не удалось распарсить JSON из ответа: {response_text}")
+            vector_hits = semantic_vector_search(message, max_results=5)
+            if vector_hits:
+                return format_search_results(vector_hits)
             return response_text
 
         return response_text
@@ -211,9 +219,14 @@ def perform_actual_search(search_params, user):
 
 def format_search_results(products, max_results=5):
     """Форматирует результаты поиска для отображения пользователю"""
-    if not products.exists():
+    # Принимаем как QuerySet, так и обычный список
+    if hasattr(products, 'exists'):
+        products = list(products)
+
+    if not products:
         return "К сожалению, товары по вашему запросу не найдены."
 
+    total_count = len(products)
     products = products[:max_results]
     result = "Вот что я нашла по вашему запросу:\n\n"
 
@@ -228,8 +241,8 @@ def format_search_results(products, max_results=5):
             result += f"   {desc}\n"
         result += f"   Ссылка: {product.get_absolute_url()}\n\n"
 
-    if products.count() > max_results:
-        result += f"И еще {products.count() - max_results} товаров. Уточните запрос, чтобы получить более точные результаты."
+    if total_count > max_results:
+        result += f"И еще {total_count - max_results} товаров. Уточните запрос, чтобы получить более точные результаты."
 
     return result
 
@@ -281,3 +294,105 @@ def search_products_with_ai(query, user=None):
             "price_range": {"min": None, "max": None},
             "filters": {}
         }
+
+
+def cosine_similarity(vec_a, vec_b):
+    """Простая косинусная близость без numpy"""
+    if not vec_a or not vec_b:
+        return 0.0
+
+    dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+
+    return dot_product / (norm_a * norm_b)
+
+
+def build_product_text(product):
+    """Собираем текст для эмбеддинга товара"""
+    parts = [product.name or "", product.description or ""]
+    if product.category:
+        parts.append(product.category.name)
+    if hasattr(product, "attributes"):
+        attrs = [f"{attr.name}: {attr.value}" for attr in product.attributes.all()]
+        parts.extend(attrs)
+    return "\n".join([p for p in parts if p])
+
+
+def embed_text(text, task_type="retrieval_document"):
+    """Получаем вектор через Gemini embeddings"""
+    try:
+        response = genai.embed_content(
+            model=EMBEDDING_MODEL_NAME,
+            content=text,
+            task_type=task_type,
+        )
+        return response["embedding"]
+    except Exception as e:
+        logger.error(f"Ошибка при получении эмбеддинга: {str(e)}")
+        return None
+
+
+def ensure_product_embedding(product):
+    """Создает или обновляет эмбеддинг товара, если это необходимо"""
+    embedding_obj, _ = ProductEmbedding.objects.get_or_create(
+        product=product,
+        defaults={"vector": [], "source_model": EMBEDDING_MODEL_NAME, "dim": 0},
+    )
+
+    needs_refresh = not embedding_obj.vector or embedding_obj.updated_at < product.updated_at
+
+    if needs_refresh:
+        text = build_product_text(product)
+        vector = embed_text(text, task_type="retrieval_document")
+        if vector:
+            embedding_obj.vector = vector
+            embedding_obj.dim = len(vector)
+            embedding_obj.source_model = EMBEDDING_MODEL_NAME
+            embedding_obj.save(update_fields=["vector", "dim", "source_model", "updated_at"])
+        else:
+            logger.warning(f"Не удалось обновить эмбеддинг для товара {product.id}")
+
+    return embedding_obj.vector
+
+
+def semantic_vector_search(query_text, max_results=5):
+    """
+    Семантический поиск товаров по эмбеддингам.
+    Возвращает список товаров, отсортированных по релевантности.
+    """
+    query_vector = embed_text(query_text, task_type="semantic_retrieval_query")
+    if not query_vector:
+        return []
+
+    candidates = Product.objects.filter(status="active").select_related("category").prefetch_related("attributes")
+    scored = []
+
+    for product in candidates:
+        product_vector = ensure_product_embedding(product)
+        if not product_vector:
+            continue
+        score = cosine_similarity(query_vector, product_vector)
+        scored.append((score, product))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    top_products = [product for score, product in scored[:max_results] if score > 0]
+
+    return top_products
+
+
+def merge_product_lists(primary, secondary):
+    """Объединение списков товаров с сохранением порядка и без дубликатов"""
+    seen = set()
+    merged = []
+
+    for product in primary + secondary:
+        if product.id in seen:
+            continue
+        seen.add(product.id)
+        merged.append(product)
+
+    return merged
