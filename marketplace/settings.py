@@ -168,7 +168,8 @@ REST_FRAMEWORK = {
 }
 
 # Gemini API
-OPENAI_API_KEY = config('OPENAI_API_KEY')
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='AIzaSyAzUyp0e89OyU2aCA1gb_jm8cu-qWQ6IZo')
+OPENAI_API_KEY = GEMINI_API_KEY
 
 # Logging
 LOGGING = {
