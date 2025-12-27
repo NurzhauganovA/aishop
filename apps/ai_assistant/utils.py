@@ -1,7 +1,6 @@
 import time
 from functools import wraps
 
-import openai
 import google.generativeai as genai
 from django.conf import settings
 from django.db.models import Q
@@ -16,7 +15,11 @@ from ..products.models import Product, Category
 logger = logging.getLogger(__name__)
 
 # Инициализация Gemini API
-genai.configure(api_key=settings.OPENAI_API_KEY)
+genai.configure(api_key=settings.GEMINI_API_KEY)
+
+# Модель, которую requested пользователь
+MODEL_NAME = 'gemini-3-flash-preview'  # Если эта модель не доступна, библиотека может выдать ошибку.
+# В таком случае замените на 'gemini-1.5-flash' или 'gemini-2.0-flash-exp'
 
 
 class RateLimiter:
@@ -48,9 +51,10 @@ class RateLimiter:
 
 @RateLimiter(max_calls=15, period=60)
 def generate_ai_product_description(product_name, attributes):
-    """Генерация описания товара с помощью ИИ"""
+    """Генерация описания товара с помощью Google Gemini"""
     try:
-        # Создание запроса к модели
+        model = genai.GenerativeModel(MODEL_NAME)
+
         prompt = f"""
         Создай подробное и привлекательное описание для товара "{product_name}" на основе следующих характеристик:
 
@@ -61,112 +65,112 @@ def generate_ai_product_description(product_name, attributes):
         но будь честным и точным. Пиши на русском языке, 3-4 абзаца текста.
         """
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "Ты - опытный копирайтер, специализирующийся на описаниях товаров"},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=800,
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=800,
+            )
         )
-        # Получение текста ответа
-        result_text = response.choices[0].message.content.strip()
-        return result_text
+
+        return response.text.strip()
     except Exception as e:
         logger.error(f"Ошибка при генерации описания: {str(e)}")
+        # Fallback на стабильную модель если экспериментальная недоступна
+        if "404" in str(e) or "not found" in str(e).lower():
+            try:
+                logger.info("Попытка использовать запасную модель gemini-1.5-flash")
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                response = model.generate_content(prompt)
+                return response.text.strip()
+            except Exception as e2:
+                logger.error(f"Ошибка и с запасной моделью: {str(e2)}")
+
         return f"Ошибка при генерации описания: {str(e)}"
 
 
 @RateLimiter(max_calls=15, period=60)
 def chat_with_ai_assistant(user, message, conversation_history=None):
-    """Взаимодействие с ИИ-ассистентом AISha"""
+    """Взаимодействие с ИИ-ассистентом AISha через Google Gemini"""
     try:
         # Сохранение запроса пользователя
         AISearchQuery.objects.create(user=user, query=message)
 
-        # Подготовка сообщений для OpenAI
-        messages = [
-            {"role": "system", "content": """
-            Ты AISha - умный ассистент маркетплейса. Твоя задача - помогать пользователям находить нужные товары,
-            отвечать на их вопросы и давать рекомендации. Говори на русском языке, будь дружелюбной,
-            полезной и информативной. 
+        system_instruction = """
+        Ты AISha - умный ассистент маркетплейса. Твоя задача - помогать пользователям находить нужные товары,
+        отвечать на их вопросы и давать рекомендации. Говори на русском языке, будь дружелюбной,
+        полезной и информативной. 
 
-            ВАЖНО: Когда пользователь просит найти товар или информацию о товаре, НЕ ВЫДУМЫВАЙ ТОВАРЫ. 
-            Вместо этого, возвращай запрос для поиска в базе данных в следующем формате JSON:
+        ВАЖНО: Когда пользователь просит найти товар или информацию о товаре, НЕ ВЫДУМЫВАЙ ТОВАРЫ. 
+        Вместо этого, возвращай запрос для поиска в базе данных в следующем формате JSON:
 
-            {
-                "search_request": true,
-                "keywords": ["ключевое слово1", "ключевое слово2"],
-                "categories": ["категория1", "категория2"],
-                "price_range": {"min": минимальная_цена, "max": максимальная_цена},
-                "filters": {"параметр1": "значение1", "параметр2": "значение2"}
-            }
+        {
+            "search_request": true,
+            "keywords": ["ключевое слово1", "ключевое слово2"],
+            "categories": ["категория1", "категория2"],
+            "price_range": {"min": минимальная_цена, "max": максимальная_цена},
+            "filters": {"параметр1": "значение1", "параметр2": "значение2"}
+        }
 
-            НЕ добавляй объяснений до или после JSON. Если пользователь не запрашивает поиск товара, 
-            отвечай обычным текстом без JSON.
-            """}
-        ]
+        НЕ добавляй объяснений до или после JSON. Если пользователь не запрашивает поиск товара, 
+        отвечай обычным текстом без JSON.
+        """
 
-        # Добавляем историю сообщений
-        if conversation_history:
-            for msg in conversation_history:
-                role = "user" if msg.role == "user" else "assistant"
-                messages.append({"role": role, "content": msg.content})
-
-        # Добавляем текущее сообщение пользователя
-        messages.append({"role": "user", "content": message})
-
-        logger.info(f"Запрос к OpenAI: {messages[-1]}")
-
-        # Отправляем запрос к модели
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=800,
+        model = genai.GenerativeModel(
+            MODEL_NAME,
+            system_instruction=system_instruction
         )
 
-        # Получение текста ответа
-        response_text = response.choices[0].message.content.strip()
-        logger.info(f"Ответ от OpenAI: {response_text}")
+        # Формирование истории чата для Gemini
+        chat_history = []
+        if conversation_history:
+            for msg in conversation_history:
+                role = "user" if msg.role == "user" else "model"
+                chat_history.append({"role": role, "parts": [msg.content]})
 
-        # Проверяем, есть ли в ответе полноценный JSON объект
+        # Запуск чата
+        chat = model.start_chat(history=chat_history)
+
+        logger.info(f"Запрос к Gemini: {message}")
+
+        response = chat.send_message(
+            message,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=800,
+            )
+        )
+
+        response_text = response.text.strip()
+        logger.info(f"Ответ от Gemini: {response_text}")
+
+        # Проверяем JSON
         try:
-            # Ищем начало и конец JSON (фигурные скобки)
             start_idx = response_text.find('{')
             end_idx = response_text.rfind('}') + 1
 
             if start_idx >= 0 and end_idx > start_idx:
-                # Извлекаем строку, которая может быть JSON
                 json_str = response_text[start_idx:end_idx]
-
-                # Пытаемся распарсить JSON
                 json_data = json.loads(json_str)
 
-                # Проверяем, что это действительно объект для поиска
                 if isinstance(json_data, dict) and json_data.get('search_request') == True:
-                    # Выполняем поиск в базе данных, используя параметры из JSON
                     search_results = perform_actual_search(json_data, user)
-
-                    # Возвращаем результаты поиска в формате, который будет полезен пользователю
                     if search_results:
                         return format_search_results(search_results)
                     else:
                         return "К сожалению, товары по вашему запросу не найдены. Попробуйте изменить критерии поиска."
-
-                # Если JSON не для поиска или не содержит 'search_request', просто возвращаем текстовый ответ
                 return response_text
         except json.JSONDecodeError:
-            # Если не удалось распарсить, просто возвращаем текстовый ответ
             logger.warning(f"Не удалось распарсить JSON из ответа: {response_text}")
             return response_text
 
-        # Если мы дошли до этой точки, просто возвращаем текстовый ответ
         return response_text
 
     except Exception as e:
         logger.error(f"Ошибка в чате с ИИ: {str(e)}")
+        # Fallback
+        if "404" in str(e) or "not found" in str(e).lower():
+            return "Извините, выбранная модель ИИ сейчас недоступна. Попробуйте позже."
         return f"Извините, произошла ошибка: {str(e)}"
 
 
@@ -210,23 +214,20 @@ def format_search_results(products, max_results=5):
     if not products.exists():
         return "К сожалению, товары по вашему запросу не найдены."
 
-    # Ограничиваем количество результатов
     products = products[:max_results]
-
-    # Формируем текстовый ответ с результатами
     result = "Вот что я нашла по вашему запросу:\n\n"
 
     for i, product in enumerate(products, 1):
         result += f"{i}. {product.name}\n"
-        result += f"   Цена: {product.price} руб.\n"
+        result += f"   Цена: {product.price} ₸\n"  # Исправил валюту на Тенге
         if product.old_price and product.old_price > product.price:
             discount = round(100 - (product.price / product.old_price * 100))
-            result += f"   Скидка: {discount}% (было {product.old_price} руб.)\n"
+            result += f"   Скидка: {discount}% (было {product.old_price} ₸)\n"
         if product.description:
-            result += f"   {product.description}\n"
+            desc = product.description[:100] + "..." if len(product.description) > 100 else product.description
+            result += f"   {desc}\n"
         result += f"   Ссылка: {product.get_absolute_url()}\n\n"
 
-    # Если есть больше результатов, чем показали
     if products.count() > max_results:
         result += f"И еще {products.count() - max_results} товаров. Уточните запрос, чтобы получить более точные результаты."
 
@@ -234,13 +235,13 @@ def format_search_results(products, max_results=5):
 
 
 def search_products_with_ai(query, user=None):
-    """Поиск товаров с помощью ИИ"""
+    """Поиск товаров с помощью ИИ (анализ запроса)"""
     try:
-        # Если есть пользователь, сохраняем запрос
         if user and user.is_authenticated:
             AISearchQuery.objects.create(user=user, query=query)
 
-        # Создание запроса к модели для анализа поискового запроса
+        model = genai.GenerativeModel(MODEL_NAME)
+
         prompt = f"""
         Проанализируй поисковый запрос пользователя: "{query}"
 
@@ -254,56 +255,26 @@ def search_products_with_ai(query, user=None):
         {{
             "categories": ["категория1", "категория2"],
             "keywords": ["ключевое_слово1", "ключевое_слово2"],
-            "price_range": {{"min": минимальная_цена, "max": максимальная_цена}},
-            "filters": {{"параметр1": "значение1", "параметр2": "значение2"}}
+            "price_range": {{"min": null, "max": null}},
+            "filters": {{"параметр1": "значение1"}}
         }}
         """
 
-        # Отправка запроса к OpenAI API
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system",
-                 "content": "Ты - аналитическая система для маркетплейса. Твоя задача - распознавать категории и ключевые слова в запросах. Отвечай только в формате JSON без дополнительного текста."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-            max_tokens=500,
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                response_mime_type="application/json"
+            )
         )
 
-        # Получение текста ответа
-        result_text = response.choices[0].message.content.strip()
+        result_text = response.text.strip()
         logger.info(f"Ответ от search_products_with_ai: {result_text}")
 
-        # Проверяем, содержит ли ответ валидный JSON
-        try:
-            # Удаляем все что не JSON (текст до { и после })
-            start_idx = result_text.find('{')
-            end_idx = result_text.rfind('}') + 1
+        return json.loads(result_text)
 
-            if start_idx >= 0 and end_idx > start_idx:
-                json_str = result_text[start_idx:end_idx]
-                search_params = json.loads(json_str)
-                return search_params
-            else:
-                # Если не удалось найти JSON в ответе, создаем базовый ответ
-                logger.warning(f"Не найден JSON формат в ответе: {result_text}")
-                return {
-                    "categories": [],
-                    "keywords": query.split(),
-                    "price_range": {"min": None, "max": None},
-                    "filters": {}
-                }
-        except json.JSONDecodeError as e:
-            logger.error(f"Не удалось распарсить JSON из ответа: {result_text}. Ошибка: {str(e)}")
-            return {
-                "categories": [],
-                "keywords": query.split(),
-                "price_range": {"min": None, "max": None},
-                "filters": {}
-            }
     except Exception as e:
         logger.error(f"Ошибка при поиске товаров с ИИ: {str(e)}")
+        # Fallback, если модель недоступна или ошибка парсинга
         return {
             "categories": [],
             "keywords": query.split(),

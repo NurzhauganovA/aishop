@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': getCookie('csrftoken')
             }
         })
         .then(response => {
@@ -205,6 +205,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         return;
                     }
 
+                    // ИСПРАВЛЕНИЕ: Игнорируем сообщения от пользователя, так как они уже добавлены в чат
+                    if (data.role === 'user') {
+                        return;
+                    }
+
                     if (data.status === 'success' && data.results) {
                         // Обработка результатов поиска
                         handleSearchResults(data.results);
@@ -309,12 +314,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 <div class="product-details">
                     <h6 class="product-name">${product.name}</h6>
-                    <div class="product-price">${product.price} руб.</div>
+                    <div class="product-price">${product.price} ₸</div>
                     ${product.old_price ? 
-                        `<div class="product-old-price">${product.old_price} руб.</div>` : 
+                        `<div class="product-old-price">${product.old_price} ₸</div>` : 
                         ''
                     }
-                    <a href="${product.url}" class="product-link" target="_blank">Посмотреть товар</a>
+                    <a href="${product.url}" class="product-link" target="_blank">Посмотреть</a>
                 </div>
             </div>
         `;
