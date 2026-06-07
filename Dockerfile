@@ -21,20 +21,8 @@ RUN pip install --upgrade pip \
 
 COPY . /app/
 
-# Clean up duplicate migrations (only keep __init__.py + real 0002 for products)
-RUN find /app/apps/accounts/migrations    -name "*.py" ! -name "__init__.py" -delete && \
-    find /app/apps/user_activities/migrations -name "*.py" ! -name "__init__.py" -delete && \
-    find /app/apps/products/migrations    -name "*.py" \
-        ! -name "__init__.py" \
-        ! -name "0002_cart_review_wishlist_reviewimage_productvideo_and_more.py" \
-        -delete && \
-    mkdir -p /app/apps/accounts/migrations \
-             /app/apps/products/migrations \
-             /app/apps/orders/migrations \
-             /app/apps/chat/migrations \
-             /app/apps/notifications/migrations \
-             /app/apps/ai_assistant/migrations \
-             /app/apps/user_activities/migrations
+# Удалить ВСЕ старые миграции — Django сгенерирует чистые при старте
+RUN find /app/apps -path "*/migrations/*.py" ! -name "__init__.py" -delete
 
 RUN mkdir -p /app/static /app/media /app/staticfiles
 
