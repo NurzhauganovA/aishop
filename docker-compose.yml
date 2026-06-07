@@ -1,109 +1,115 @@
-version: '3.8'
+# ─────────────────────────────────────────────────────
+#  AIShop Marketplace — docker compose up --build
+#  После запуска: https://donor.asia
+#  Admin: admin / admin123456
+#  Host Nginx проксирует 443 → localhost:8081
+# ─────────────────────────────────────────────────────
+
+x-app-env: &app-env
+  env_file:
+    - ./.env
+
+x-app-volumes: &app-volumes
+  volumes:
+    - static_volume:/app/static
+    - media_volume:/app/media
 
 services:
+
+  # ── PostgreSQL ────────────────────────────────────
   db:
-    image: postgres:13
+    image: postgres:15-alpine
+    restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    env_file:
-      - ./.env
     environment:
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_DB=${DB_NAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - marketplace_network
 
+  # ── Redis ─────────────────────────────────────────
   redis:
-    image: redis:6.2
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - marketplace_network
 
+  # ── Django (ASGI via Daphne) ───────────────────────
   web:
     build: .
-    restart: always
+    restart: unless-stopped
+    <<: [*app-env, *app-volumes]
     depends_on:
-      - db
-      - redis
-    volumes:
-      - .:/app
-      - static_volume:/app/static
-      - media_volume:/app/media
-    env_file:
-      - ./.env
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     entrypoint: /app/docker/entrypoint.sh
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
     networks:
       - marketplace_network
 
+  # ── Celery Worker ─────────────────────────────────
   celery:
     build: .
-    command: celery -A marketplace worker -l info
+    restart: unless-stopped
+    command: celery -A marketplace worker -l info -c 2
+    <<: [*app-env, *app-volumes]
     depends_on:
-      - db
-      - redis
-      - web
-    volumes:
-      - .:/app
-    env_file:
-      - ./.env
+      web:
+        condition: service_healthy
     networks:
       - marketplace_network
 
+  # ── Celery Beat ───────────────────────────────────
   celery-beat:
     build: .
+    restart: unless-stopped
     command: celery -A marketplace beat -l info
+    <<: [*app-env, *app-volumes]
     depends_on:
-      - db
-      - redis
-      - web
-    volumes:
-      - .:/app
-    env_file:
-      - ./.env
+      web:
+        condition: service_healthy
     networks:
       - marketplace_network
 
-  daphne:
-    build: .
-    command: daphne -b 0.0.0.0 -p 8000 marketplace.asgi:application
-    volumes:
-      - .:/app
-      - static_volume:/app/static
-      - media_volume:/app/media
-    depends_on:
-      - db
-      - redis
-      - web
-    env_file:
-      - ./.env
-    networks:
-      - marketplace_network
-
+  # ── Nginx (внутри Docker: HTTP роутинг) ───────────
+  # Host Nginx (на сервере) проксирует на порт 8081
   nginx:
-    image: nginx:1.21
+    image: nginx:1.25-alpine
+    restart: unless-stopped
     ports:
-      - 80:80
-      - 443:443
+      - "${APP_PORT:-8081}:80"
     volumes:
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - static_volume:/app/static
-      - media_volume:/app/media
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/static:ro
+      - media_volume:/app/media:ro
     depends_on:
-      - web
-      - daphne
+      web:
+        condition: service_healthy
     networks:
       - marketplace_network
-
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
 
 networks:
   marketplace_network:
+    driver: bridge
 
 volumes:
   postgres_data:
