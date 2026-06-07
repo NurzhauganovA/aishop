@@ -7,7 +7,7 @@ echo "================================================"
 
 # Ждём PostgreSQL
 echo "⏳ Ожидание PostgreSQL..."
-until pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}"; do
+until pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-aishop_user}"; do
   >&2 echo "   PostgreSQL не готов, ждём..."
   sleep 2
 done
@@ -16,21 +16,18 @@ echo "✅ PostgreSQL готов"
 # Собираем статику
 echo ""
 echo "📦 Сбор статических файлов..."
-python manage.py collectstatic --noinput --clear 2>&1 | tail -3
+python manage.py collectstatic --noinput 2>&1 | tail -3
 echo "✅ Статика собрана"
 
-# ── Миграции ────────────────────────────────────────────────────
-# Создаём чистые начальные миграции ТОЛЬКО ЕСЛИ их не существует.
-# Dockerfile уже удалил дубликаты при сборке образа.
+# ── Начальные миграции (пишем файлы НАПРЯМУЮ, без makemigrations) ──
 
 echo ""
-echo "📝 Проверка миграций..."
+echo "📝 Проверка начальных миграций..."
 
+# accounts/0001
 if [ ! -f "/app/apps/accounts/migrations/0001_initial_accounts.py" ]; then
-  echo "   Создаём начальную миграцию accounts..."
-  python manage.py makemigrations accounts --empty --name initial_accounts
-  ACCOUNTS_MIGRATION=$(find /app/apps/accounts/migrations -name "0001_initial_accounts.py")
-  cat > "$ACCOUNTS_MIGRATION" << 'MIGRATION_EOF'
+  echo "   → Создаём accounts/0001..."
+  cat > /app/apps/accounts/migrations/0001_initial_accounts.py << 'MIGRATION_EOF'
 from django.db import migrations, models
 import django.utils.timezone
 
@@ -55,10 +52,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True)),
                 ('date_joined', models.DateTimeField(default=django.utils.timezone.now)),
                 ('phone_number', models.CharField(blank=True, max_length=15, null=True, verbose_name='Номер телефона')),
-                ('role', models.CharField(
-                    choices=[('buyer', 'Покупатель'), ('seller', 'Продавец'), ('admin', 'Администратор')],
-                    default='buyer', max_length=10, verbose_name='Роль'
-                )),
+                ('role', models.CharField(choices=[('buyer','Покупатель'),('seller','Продавец'),('admin','Администратор')], default='buyer', max_length=10, verbose_name='Роль')),
                 ('is_online', models.BooleanField(default=False, verbose_name='В сети')),
                 ('last_activity', models.DateTimeField(default=django.utils.timezone.now, verbose_name='Последняя активность')),
                 ('avatar', models.ImageField(blank=True, null=True, upload_to='avatars/', verbose_name='Аватар')),
@@ -88,11 +82,10 @@ MIGRATION_EOF
   echo "   ✓ accounts/0001 создана"
 fi
 
+# products/0001 (0002 уже существует и зависит от него)
 if [ ! -f "/app/apps/products/migrations/0001_initial_products.py" ]; then
-  echo "   Создаём начальную миграцию products..."
-  python manage.py makemigrations products --empty --name initial_products
-  PRODUCTS_MIGRATION=$(find /app/apps/products/migrations -name "0001_initial_products.py")
-  cat > "$PRODUCTS_MIGRATION" << 'MIGRATION_EOF'
+  echo "   → Создаём products/0001..."
+  cat > /app/apps/products/migrations/0001_initial_products.py << 'MIGRATION_EOF'
 from django.db import migrations, models
 import django.db.models.deletion
 
@@ -123,10 +116,7 @@ class Migration(migrations.Migration):
                 ('price', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Цена')),
                 ('old_price', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True, verbose_name='Старая цена')),
                 ('stock', models.PositiveIntegerField(verbose_name='Количество')),
-                ('status', models.CharField(
-                    choices=[('active', 'Активен'), ('archive', 'Архив'), ('out_of_stock', 'Нет в наличии')],
-                    default='active', max_length=20, verbose_name='Статус'
-                )),
+                ('status', models.CharField(choices=[('active','Активен'),('archive','Архив'),('out_of_stock','Нет в наличии')], default='active', max_length=20, verbose_name='Статус')),
                 ('is_featured', models.BooleanField(default=False, verbose_name='Рекомендуемый')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),
@@ -150,11 +140,10 @@ MIGRATION_EOF
   echo "   ✓ products/0001 создана"
 fi
 
+# user_activities/0001
 if [ ! -f "/app/apps/user_activities/migrations/0001_initial_user_activity.py" ]; then
-  echo "   Создаём начальную миграцию user_activities..."
-  python manage.py makemigrations user_activities --empty --name initial_user_activity
-  USER_ACT_MIGRATION=$(find /app/apps/user_activities/migrations -name "0001_initial_user_activity.py")
-  cat > "$USER_ACT_MIGRATION" << 'MIGRATION_EOF'
+  echo "   → Создаём user_activities/0001..."
+  cat > /app/apps/user_activities/migrations/0001_initial_user_activity.py << 'MIGRATION_EOF'
 from django.db import migrations, models
 import django.db.models.deletion
 
@@ -186,12 +175,15 @@ MIGRATION_EOF
   echo "   ✓ user_activities/0001 создана"
 fi
 
-# Создаём миграции для остальных приложений (orders, chat, notifications, ai_assistant)
-echo "   Генерируем миграции для остальных приложений..."
+echo "✅ Начальные миграции готовы"
+
+# ── Генерируем миграции для остальных приложений ──
+echo ""
+echo "📝 Генерация миграций для orders/chat/notifications/ai_assistant..."
 python manage.py makemigrations orders chat notifications ai_assistant --noinput 2>/dev/null || true
 python manage.py makemigrations --noinput 2>/dev/null || true
 
-# Применяем все миграции
+# ── Применяем миграции ──
 echo ""
 echo "🗄️  Применение миграций..."
 python manage.py migrate auth --noinput
@@ -203,7 +195,7 @@ python manage.py migrate user_activities --noinput
 python manage.py migrate --noinput
 echo "✅ Миграции применены"
 
-# Суперпользователь
+# ── Суперпользователь ──
 echo ""
 echo "👤 Проверка суперпользователя..."
 python manage.py shell -c "
@@ -213,28 +205,30 @@ if not User.objects.filter(username='admin').exists():
     user = User.objects.create_superuser('admin', 'admin@example.com', 'admin123456')
     user.role = 'admin'
     user.save()
-    print('✓ Суперпользователь создан: admin / admin123456')
+    print('✓ admin / admin123456 создан')
 else:
     print('  admin уже существует')
 "
 
-# Загружаем начальные данные (категории)
+# ── Категории ──
 echo ""
-echo "📦 Загрузка начальных данных..."
-python manage.py loaddata apps/products/fixtures/initial_data.json 2>/dev/null && echo "✅ Категории загружены" || echo "  Категории уже загружены или файл не найден"
+echo "📦 Загрузка категорий..."
+python manage.py loaddata apps/products/fixtures/initial_data.json 2>/dev/null \
+  && echo "✅ Категории загружены" \
+  || echo "  Категории уже загружены"
 
-# Создаём Site запись
+# ── Site ──
 python manage.py shell -c "
 from django.contrib.sites.models import Site
-Site.objects.update_or_create(id=1, defaults={'domain': '${SITE_DOMAIN:-donor.asia}', 'name': 'AIShop'})
+import os
+domain = os.environ.get('SITE_DOMAIN', 'donor.asia')
+Site.objects.update_or_create(id=1, defaults={'domain': domain, 'name': 'AIShop'})
 " 2>/dev/null || true
 
 echo ""
-echo "🎉 AIShop готов к работе!"
-echo "   URL: https://${SITE_DOMAIN:-donor.asia}"
+echo "🎉 AIShop готов!"
+echo "   URL:   https://${SITE_DOMAIN:-donor.asia}"
 echo "   Admin: admin / admin123456"
 echo ""
-
-# Запускаем Daphne (ASGI — поддерживает и HTTP, и WebSocket)
-echo "🚀 Запуск Daphne ASGI сервера..."
+echo "🚀 Запуск Daphne..."
 exec daphne -b 0.0.0.0 -p 8000 marketplace.asgi:application
