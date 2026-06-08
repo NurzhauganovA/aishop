@@ -71,6 +71,11 @@ else:
     print(f'  Товаров уже {Product.objects.count()}, пропускаем')
 " 2>&1
 
+# Download product images (only for products that have none)
+echo ""
+echo "🖼️  Загрузка изображений товаров..."
+python manage.py add_product_images --timeout 15 --delay 0.2 2>&1 || true
+
 # Site
 python manage.py shell -c "
 import os
