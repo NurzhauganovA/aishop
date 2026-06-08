@@ -55,21 +55,21 @@ else:
 echo ""
 echo "🛍️  Загрузка демо-товаров..."
 python manage.py shell -c "
-from apps.products.models import Product, Category
+from apps.products.models import Product
 if not Product.objects.exists():
     import subprocess
-    result = subprocess.run(['python', 'manage.py', 'seed_data'], capture_output=True, text=True)
-    print(result.stdout[-500:] if result.stdout else 'No output')
+    result = subprocess.run(
+        ['python', 'manage.py', 'seed_data', '--no-images'],
+        capture_output=True, text=True
+    )
+    print(result.stdout[-1000:] if result.stdout else 'No output')
     if result.returncode != 0:
-        print('Seed error:', result.stderr[-300:])
+        print('Seed error:', result.stderr[-500:])
     else:
         print('✅ Демо-товары загружены')
 else:
     print(f'  Товаров уже {Product.objects.count()}, пропускаем')
 " 2>&1
-
-# Legacy fixtures (kept for compatibility)
-python manage.py loaddata apps/products/fixtures/initial_data.json 2>/dev/null || true
 
 # Site
 python manage.py shell -c "

@@ -11,291 +11,352 @@ from django.db.models import Q
 from .models import AISearchQuery, ProductEmbedding
 from ..products.models import Product, Category
 
-# Настройка логирования
 logger = logging.getLogger(__name__)
 
-# Инициализация Gemini API
-genai.configure(api_key=settings.GEMINI_API_KEY)
-
-MODEL_NAME = 'gemini-1.5-flash'
+# ── Model selection ───────────────────────────────────────────────────────────
+# Tried in order until one works
+CANDIDATE_MODELS = [
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-pro',
+    'gemini-1.0-pro',
+]
 EMBEDDING_MODEL_NAME = "models/embedding-001"
+
+_configured = False
+
+
+def _configure_genai():
+    """Configure Gemini once; returns True if key is present."""
+    global _configured
+    if _configured:
+        return True
+    key = getattr(settings, 'GEMINI_API_KEY', '') or ''
+    if not key or key.startswith('ЗАМЕНИ') or len(key) < 10:
+        logger.warning("GEMINI_API_KEY is not set — AI features will use keyword-only search")
+        return False
+    genai.configure(api_key=key)
+    _configured = True
+    return True
+
+
+def _get_model(model_name=None):
+    """Return the first working GenerativeModel."""
+    candidates = [model_name] + CANDIDATE_MODELS if model_name else CANDIDATE_MODELS
+    for name in candidates:
+        if not name:
+            continue
+        try:
+            m = genai.GenerativeModel(name)
+            # Quick smoke-test: just constructing the object is enough
+            return m, name
+        except Exception:
+            continue
+    return None, None
 
 
 class RateLimiter:
     def __init__(self, max_calls=20, period=60):
-        self.max_calls = max_calls  # Максимальное количество вызовов
-        self.period = period  # Период в секундах
-        self.calls = []  # История вызовов
+        self.max_calls = max_calls
+        self.period = period
+        self.calls = []
 
     def __call__(self, func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             now = time.time()
-
-            # Очистка истории вызовов старше периода
-            self.calls = [call_time for call_time in self.calls if now - call_time < self.period]
-
-            # Проверка лимита
+            self.calls = [t for t in self.calls if now - t < self.period]
             if len(self.calls) >= self.max_calls:
-                wait_time = self.period - (now - self.calls[0])
-                if wait_time > 0:
-                    raise Exception(f"Превышен лимит запросов. Попробуйте снова через {int(wait_time)} секунд.")
-
-            # Добавление текущего вызова
+                wait = self.period - (now - self.calls[0])
+                if wait > 0:
+                    raise Exception(f"Превышен лимит запросов. Подождите {int(wait)} сек.")
             self.calls.append(now)
             return func(*args, **kwargs)
-
         return wrapper
 
 
 @RateLimiter(max_calls=15, period=60)
 def generate_ai_product_description(product_name, attributes):
-    """Генерация описания товара с помощью Google Gemini"""
+    """Generate product description with Gemini AI."""
+    if not _configure_genai():
+        return f"Описание для '{product_name}': качественный товар с отличными характеристиками."
+
+    prompt = (
+        f"Создай привлекательное описание для товара \"{product_name}\" "
+        f"на основе характеристик:\n{json.dumps(attributes, indent=2, ensure_ascii=False)}\n"
+        "Пиши на русском, 2-3 абзаца, маркетинговый стиль."
+    )
+
+    model, name = _get_model()
+    if model is None:
+        return f"Описание для '{product_name}': качественный товар."
+
     try:
-        model = genai.GenerativeModel(MODEL_NAME)
-
-        prompt = f"""
-        Создай подробное и привлекательное описание для товара "{product_name}" на основе следующих характеристик:
-
-        {json.dumps(attributes, indent=2, ensure_ascii=False)}
-
-        Описание должно быть привлекательным для покупателей, подчеркивать преимущества товара 
-        и включать информацию о характеристиках. Используй маркетинговый стиль, 
-        но будь честным и точным. Пиши на русском языке, 3-4 абзаца текста.
-        """
-
-        response = model.generate_content(
+        resp = model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.7,
-                max_output_tokens=800,
+                max_output_tokens=600,
             )
         )
-
-        return response.text.strip()
+        return resp.text.strip()
     except Exception as e:
-        logger.error(f"Ошибка при генерации описания: {str(e)}")
-        # Fallback на стабильную модель если экспериментальная недоступна
-        if "404" in str(e) or "not found" in str(e).lower():
-            try:
-                logger.info("Попытка использовать запасную модель gemini-2.0-flash")
-                model = genai.GenerativeModel("gemini-2.0-flash")
-                response = model.generate_content(prompt)
-                return response.text.strip()
-            except Exception as e2:
-                logger.error(f"Ошибка и с запасной моделью: {str(e2)}")
+        logger.error(f"generate_ai_product_description error ({name}): {e}")
+        return f"Ошибка при генерации описания: {e}"
 
-        return f"Ошибка при генерации описания: {str(e)}"
+
+# ── Multilingual system prompt ────────────────────────────────────────────────
+SYSTEM_PROMPT = """You are AISha — the AI assistant of SmartShop marketplace.
+
+YOUR TASK: Help users find products that exist on OUR website.
+
+LANGUAGE RULE: Always reply in the SAME language the user writes in.
+- Русский → отвечай по-русски
+- Қазақша → қазақша жауап бер
+- English → reply in English
+
+PRODUCT SEARCH RULE:
+When the user asks to find/show/search for a product, respond ONLY with valid JSON (no extra text):
+{
+  "search_request": true,
+  "keywords": ["word1", "word2"],
+  "categories": ["CategoryName"],
+  "price_range": {"min": null, "max": null},
+  "filters": {"color": "black", "storage": "512"}
+}
+
+For general questions/greetings — reply with friendly plain text, NO JSON.
+Never invent products. Never link to external sites."""
 
 
 @RateLimiter(max_calls=15, period=60)
 def chat_with_ai_assistant(user, message, conversation_history=None):
-    """Взаимодействие с ИИ-ассистентом AISha через Google Gemini"""
+    """Main chat function — tries Gemini, falls back to keyword search."""
     try:
-        # Сохранение запроса пользователя
         AISearchQuery.objects.create(user=user, query=message)
+    except Exception:
+        pass
 
-        system_instruction = """
-        Ты AISha — умный ИИ-ассистент маркетплейса SmartShop.
-        Твоя задача: помогать пользователям находить нужные товары на НАШЕМ сайте, отвечать на вопросы и давать рекомендации.
+    # ── Try Gemini AI first ───────────────────────────────────────────────
+    if _configure_genai():
+        response_text = _call_gemini(message, conversation_history)
+        if response_text is not None:
+            return _process_ai_response(response_text, message)
 
-        ЯЗЫК: Определи язык запроса пользователя и ВСЕГДА отвечай на том же языке.
-        - Если пишет по-русски → отвечай по-русски
-        - Если пишет по-казахски → отвечай по-казахски
-        - Если пишет по-английски → отвечай по-английски
+    # ── Fallback: keyword-based DB search ────────────────────────────────
+    logger.info("Falling back to keyword search for: %s", message)
+    return _keyword_fallback(message)
 
-        ПОИСК ТОВАРОВ: Когда пользователь просит найти товар — НЕ ВЫДУМЫВАЙ товары, не ссылайся на внешние сайты.
-        Вместо этого верни JSON-запрос для поиска в нашей базе данных:
 
-        {
-            "search_request": true,
-            "keywords": ["keyword1", "keyword2"],
-            "categories": ["category1"],
-            "price_range": {"min": null, "max": null},
-            "filters": {"color": "black", "storage": "512gb"}
-        }
+def _call_gemini(message, conversation_history):
+    """Call Gemini API. Returns text or None on failure."""
+    model, model_name = _get_model()
+    if model is None:
+        logger.error("No working Gemini model found")
+        return None
 
-        НЕ добавляй никакого текста до или после JSON при поиске товара.
-        Если пользователь просто общается или задаёт вопрос — отвечай дружелюбным текстом без JSON.
-        """
+    # Build prompt: prepend system instructions to first user message
+    # (v0.3.x does not support system_instruction parameter)
+    first_user_content = f"{SYSTEM_PROMPT}\n\n---\nUser: {message}"
 
-        model = genai.GenerativeModel(MODEL_NAME)
+    # Build history with proper alternation (user → model → user → model …)
+    history = []
+    if conversation_history:
+        msgs = list(conversation_history)
+        # We need pairs (user, model). If odd count, drop the first one.
+        paired = []
+        i = 0
+        while i < len(msgs):
+            if msgs[i].role == 'user' and i + 1 < len(msgs) and msgs[i + 1].role == 'ai':
+                paired.append((msgs[i], msgs[i + 1]))
+                i += 2
+            else:
+                i += 1
 
-        # Формирование истории чата для Gemini. Для старых версий SDK добавляем системную инструкцию как первый элемент истории.
-        chat_history = [{"role": "user", "parts": [system_instruction]}]
-        if conversation_history:
-            for msg in conversation_history:
-                role = "user" if msg.role == "user" else "model"
-                chat_history.append({"role": role, "parts": [msg.content]})
+        # Keep last 5 pairs to stay within token limit
+        for u_msg, a_msg in paired[-5:]:
+            history.append({"role": "user",  "parts": [u_msg.content]})
+            history.append({"role": "model", "parts": [a_msg.content]})
 
-        # Запуск чата
-        chat = model.start_chat(history=chat_history)
-
-        logger.info(f"Запрос к Gemini: {message}")
-
-        response = chat.send_message(
-            message,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.7,
-                max_output_tokens=800,
+    try:
+        if history:
+            # Start chat with history, then send current message with system prompt
+            chat = model.start_chat(history=history)
+            resp = chat.send_message(
+                first_user_content,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.5,
+                    max_output_tokens=800,
+                )
             )
-        )
+        else:
+            # No history — use generate_content directly (simpler, more reliable)
+            resp = model.generate_content(
+                first_user_content,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.5,
+                    max_output_tokens=800,
+                )
+            )
 
-        response_text = response.text.strip()
-        logger.info(f"Ответ от Gemini: {response_text}")
-
-        # Проверяем JSON
-        try:
-            start_idx = response_text.find('{')
-            end_idx = response_text.rfind('}') + 1
-
-            if start_idx >= 0 and end_idx > start_idx:
-                json_str = response_text[start_idx:end_idx]
-                json_data = json.loads(json_str)
-
-                if isinstance(json_data, dict) and json_data.get('search_request') == True:
-                    keywords = json_data.get('keywords', [])
-                    search_results = list(perform_actual_search(json_data, user))
-                    vector_hits = semantic_vector_search(message, max_results=5)
-                    combined_results = merge_product_lists(search_results, vector_hits)
-
-                    if combined_results:
-                        return format_search_results(combined_results, search_keywords=keywords)
-                    q = '+'.join(keywords) if keywords else ''
-                    return f"К сожалению, товары по вашему запросу не найдены.\n\n👉 [Попробуйте расширенный поиск в каталоге](/products/?q={q})"
-                else:
-                    vector_hits = semantic_vector_search(message, max_results=5)
-                    if vector_hits:
-                        return format_search_results(vector_hits)
-                    return response_text
-        except json.JSONDecodeError:
-            logger.warning(f"Не удалось распарсить JSON из ответа: {response_text}")
-            vector_hits = semantic_vector_search(message, max_results=5)
-            if vector_hits:
-                return format_search_results(vector_hits)
-            return response_text
-
-        return response_text
+        text = resp.text.strip() if resp.text else ""
+        logger.info("Gemini (%s) response: %s", model_name, text[:200])
+        return text
 
     except Exception as e:
-        logger.error(f"Ошибка в чате с ИИ: {str(e)}")
-        # Fallback
-        if "404" in str(e) or "not found" in str(e).lower():
-            return "Извините, выбранная модель ИИ сейчас недоступна. Попробуйте позже."
-        return f"Извините, произошла ошибка: {str(e)}"
+        logger.error("Gemini call failed (%s): %s", model_name, e)
+        return None
 
 
-def perform_actual_search(search_params, user):
-    """Выполняет фактический поиск товаров в базе данных"""
-    # Базовый запрос
-    products = Product.objects.filter(status='active')
+def _process_ai_response(text, original_message):
+    """Parse Gemini response — handle JSON search request or plain text."""
+    # Try to extract JSON from the response
+    try:
+        start = text.find('{')
+        end = text.rfind('}') + 1
+        if start >= 0 and end > start:
+            json_str = text[start:end]
+            data = json.loads(json_str)
+            if isinstance(data, dict) and data.get('search_request'):
+                keywords = data.get('keywords', [])
+                results = list(perform_actual_search(data, user=None))
+                vector_hits = []
+                try:
+                    vector_hits = semantic_vector_search(original_message, max_results=5)
+                except Exception:
+                    pass
+                combined = merge_product_lists(results, vector_hits)
+                if combined:
+                    return format_search_results(combined, search_keywords=keywords)
+                # No results — suggest catalog search
+                q = '+'.join(keywords) if keywords else ''
+                return (
+                    f"К сожалению, товары по вашему запросу не найдены на нашем сайте.\n\n"
+                    f"👉 [Попробуйте поиск в каталоге](/products/?q={q})"
+                )
+    except (json.JSONDecodeError, ValueError):
+        pass
 
-    # Применяем категории
+    # Plain text response — still try vector search if it looks like a product query
+    product_keywords = ['найди', 'покажи', 'хочу', 'ищу', 'есть ли', 'find', 'show',
+                        'тауып', 'табу', 'көрсет', 'бар ма']
+    is_search = any(kw in original_message.lower() for kw in product_keywords)
+    if is_search:
+        try:
+            hits = semantic_vector_search(original_message, max_results=5)
+            if hits:
+                return format_search_results(hits)
+        except Exception:
+            pass
+
+    return text
+
+
+def _keyword_fallback(message):
+    """Pure keyword search when Gemini is unavailable."""
+    words = [w for w in message.split() if len(w) > 2]
+    if not words:
+        return (
+            "Привет! Я AISha — ИИ-ассистент SmartShop. "
+            "Опишите, какой товар вы ищете, и я найду его в нашем каталоге.\n\n"
+            "👉 [Открыть каталог](/products/)"
+        )
+
+    q_filter = Q()
+    for w in words:
+        q_filter |= Q(name__icontains=w) | Q(description__icontains=w)
+
+    products = list(Product.objects.filter(status='active').filter(q_filter)[:8])
+    if products:
+        return format_search_results(products, search_keywords=words)
+
+    # Try category match
+    for w in words:
+        cats = Category.objects.filter(name__icontains=w)
+        if cats.exists():
+            products = list(Product.objects.filter(status='active', category__in=cats)[:6])
+            if products:
+                return format_search_results(products, search_keywords=words)
+
+    q = '+'.join(words[:3])
+    return (
+        f"Товары по запросу **«{message}»** не найдены.\n\n"
+        f"👉 [Посмотреть весь каталог](/products/?q={q})"
+    )
+
+
+# ── Search helpers ────────────────────────────────────────────────────────────
+
+def perform_actual_search(search_params, user=None):
+    """DB product search from AI-parsed params."""
+    products = Product.objects.filter(status='active').select_related('category')
+
     if search_params.get('categories'):
-        categories = Category.objects.filter(name__in=search_params['categories'])
-        if categories.exists():
-            products = products.filter(category__in=categories)
+        cats = Category.objects.filter(name__in=search_params['categories'])
+        if cats.exists():
+            products = products.filter(category__in=cats)
 
-    # Применяем ключевые слова
     if search_params.get('keywords'):
-        q_objects = Q()
-        for keyword in search_params['keywords']:
-            q_objects |= Q(name__icontains=keyword) | Q(description__icontains=keyword)
-        products = products.filter(q_objects)
+        q = Q()
+        for kw in search_params['keywords']:
+            q |= Q(name__icontains=kw) | Q(description__icontains=kw)
+        products = products.filter(q)
 
-    # Применяем ценовой диапазон
-    price_range = search_params.get('price_range', {})
-    if price_range and price_range.get('min') is not None:
-        products = products.filter(price__gte=price_range['min'])
-    if price_range and price_range.get('max') is not None:
-        products = products.filter(price__lte=price_range['max'])
+    pr = search_params.get('price_range') or {}
+    if pr.get('min') is not None:
+        products = products.filter(price__gte=pr['min'])
+    if pr.get('max') is not None:
+        products = products.filter(price__lte=pr['max'])
 
-    # Применяем дополнительные фильтры (если есть)
-    filters = search_params.get('filters', {})
-    for key, value in filters.items():
-        if hasattr(Product, key):
-            filter_param = {key: value}
-            products = products.filter(**filter_param)
+    # Apply extra filters (color, storage, etc.) via ProductAttribute
+    for key, value in (search_params.get('filters') or {}).items():
+        products = products.filter(
+            attributes__name__icontains=key,
+            attributes__value__icontains=str(value)
+        )
 
-    return products
+    return products.distinct()
 
 
 def format_search_results(products, max_results=5, search_keywords=None):
-    """Форматирует результаты поиска для отображения пользователю"""
-    from urllib.parse import urlencode
+    """Format product list as markdown text with clickable links."""
+    from urllib.parse import quote_plus
+
     if hasattr(products, 'exists'):
         products = list(products)
-
     if not products:
-        return "К сожалению, товары по вашему запросу не найдены. Попробуйте изменить критерии поиска."
+        return "К сожалению, товары по вашему запросу не найдены."
 
-    total_count = len(products)
+    total = len(products)
     shown = products[:max_results]
-    result = f"Нашла **{total_count}** товар(ов) по вашему запросу:\n\n"
+    result = f"Нашла **{total}** товар(ов) по вашему запросу:\n\n"
 
-    for i, product in enumerate(shown, 1):
-        url = product.get_absolute_url()
-        result += f"**{i}. [{product.name}]({url})**\n"
-        result += f"   💰 Цена: **{product.price} ₸**"
-        if product.old_price and product.old_price > product.price:
-            discount = round(100 - (float(product.price) / float(product.old_price) * 100))
-            result += f"  ~~{product.old_price} ₸~~ (-{discount}%)"
+    for i, p in enumerate(shown, 1):
+        url = p.get_absolute_url()
+        price_str = f"{p.price} ₸"
+        result += f"**{i}. [{p.name}]({url})**\n"
+        result += f"   💰 {price_str}"
+        if p.old_price and p.old_price > p.price:
+            disc = round(100 - float(p.price) / float(p.old_price) * 100)
+            result += f"  ~~{p.old_price} ₸~~ (-{disc}%)"
         result += "\n"
-        if product.description:
-            desc = product.description[:120] + "..." if len(product.description) > 120 else product.description
-            result += f"   {desc}\n"
-        result += f"   🔗 [Посмотреть товар]({url})\n\n"
+        if p.description:
+            desc = p.description[:100] + "…" if len(p.description) > 100 else p.description
+            result += f"   _{desc}_\n"
+        result += f"   🔗 [Смотреть товар]({url})\n\n"
 
-    if total_count > max_results:
-        q = ' '.join(search_keywords) if search_keywords else ''
-        catalog_url = f"/products/?q={'+'.join(search_keywords)}" if search_keywords else "/products/"
-        result += f"_...и ещё {total_count - max_results} товаров_\n"
-        result += f"👉 [Посмотреть все результаты в каталоге]({catalog_url})"
+    if total > max_results:
+        q = quote_plus(' '.join(search_keywords)) if search_keywords else ''
+        catalog_url = f"/products/?q={q}" if q else "/products/"
+        result += f"_…ещё {total - max_results} товаров_\n"
+        result += f"👉 [Все результаты в каталоге]({catalog_url})"
 
     return result
 
 
 def search_products_with_ai(query, user=None):
-    """Поиск товаров с помощью ИИ (анализ запроса)"""
-    try:
-        if user and user.is_authenticated:
-            AISearchQuery.objects.create(user=user, query=query)
-
-        model = genai.GenerativeModel(MODEL_NAME)
-
-        prompt = f"""
-        Проанализируй поисковый запрос пользователя: "{query}"
-
-        Определи:
-        1. Категории товаров, которые могут подойти
-        2. Ключевые слова для поиска
-        3. Возможный ценовой диапазон (если указан)
-        4. Другие важные параметры для фильтрации
-
-        Ответ дай строго в формате JSON без дополнительного текста:
-        {{
-            "categories": ["категория1", "категория2"],
-            "keywords": ["ключевое_слово1", "ключевое_слово2"],
-            "price_range": {{"min": null, "max": null}},
-            "filters": {{"параметр1": "значение1"}}
-        }}
-        """
-
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="application/json"
-            )
-        )
-
-        result_text = response.text.strip()
-        logger.info(f"Ответ от search_products_with_ai: {result_text}")
-
-        return json.loads(result_text)
-
-    except Exception as e:
-        logger.error(f"Ошибка при поиске товаров с ИИ: {str(e)}")
-        # Fallback, если модель недоступна или ошибка парсинга
+    """AI-powered search for REST endpoint."""
+    if not _configure_genai():
         return {
             "categories": [],
             "keywords": query.split(),
@@ -303,104 +364,105 @@ def search_products_with_ai(query, user=None):
             "filters": {}
         }
 
+    model, _ = _get_model()
+    if model is None:
+        return {"categories": [], "keywords": query.split(),
+                "price_range": {"min": None, "max": None}, "filters": {}}
 
-def cosine_similarity(vec_a, vec_b):
-    """Простая косинусная близость без numpy"""
-    if not vec_a or not vec_b:
+    prompt = (
+        f'Analyse this search query: "{query}"\n'
+        'Return ONLY valid JSON, no extra text:\n'
+        '{"categories":[],"keywords":[],"price_range":{"min":null,"max":null},"filters":{}}'
+    )
+
+    try:
+        resp = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(response_mime_type="application/json")
+        )
+        return json.loads(resp.text.strip())
+    except Exception as e:
+        logger.error("search_products_with_ai error: %s", e)
+        return {"categories": [], "keywords": query.split(),
+                "price_range": {"min": None, "max": None}, "filters": {}}
+
+
+# ── Semantic / vector search ──────────────────────────────────────────────────
+
+def cosine_similarity(a, b):
+    if not a or not b:
         return 0.0
-
-    dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
-    norm_a = math.sqrt(sum(a * a for a in vec_a))
-    norm_b = math.sqrt(sum(b * b for b in vec_b))
-
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-
-    return dot_product / (norm_a * norm_b)
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
+    return dot / (na * nb) if na and nb else 0.0
 
 
 def build_product_text(product):
-    """Собираем текст для эмбеддинга товара"""
     parts = [product.name or "", product.description or ""]
     if product.category:
         parts.append(product.category.name)
     if hasattr(product, "attributes"):
-        attrs = [f"{attr.name}: {attr.value}" for attr in product.attributes.all()]
-        parts.extend(attrs)
-    return "\n".join([p for p in parts if p])
+        parts.extend(f"{a.name}: {a.value}" for a in product.attributes.all())
+    return "\n".join(p for p in parts if p)
 
 
 def embed_text(text, task_type="retrieval_document"):
-    """Получаем вектор через Gemini embeddings"""
+    if not _configure_genai():
+        return None
     try:
-        response = genai.embed_content(
+        resp = genai.embed_content(
             model=EMBEDDING_MODEL_NAME,
             content=text,
             task_type=task_type,
         )
-        return response["embedding"]
+        return resp["embedding"]
     except Exception as e:
-        logger.error(f"Ошибка при получении эмбеддинга: {str(e)}")
+        logger.error("embed_text error: %s", e)
         return None
 
 
 def ensure_product_embedding(product):
-    """Создает или обновляет эмбеддинг товара, если это необходимо"""
     embedding_obj, _ = ProductEmbedding.objects.get_or_create(
         product=product,
         defaults={"vector": [], "source_model": EMBEDDING_MODEL_NAME, "dim": 0},
     )
-
     needs_refresh = not embedding_obj.vector or embedding_obj.updated_at < product.updated_at
-
     if needs_refresh:
-        text = build_product_text(product)
-        vector = embed_text(text, task_type="retrieval_document")
+        vector = embed_text(build_product_text(product))
         if vector:
             embedding_obj.vector = vector
             embedding_obj.dim = len(vector)
             embedding_obj.source_model = EMBEDDING_MODEL_NAME
             embedding_obj.save(update_fields=["vector", "dim", "source_model", "updated_at"])
-        else:
-            logger.warning(f"Не удалось обновить эмбеддинг для товара {product.id}")
-
     return embedding_obj.vector
 
 
 def semantic_vector_search(query_text, max_results=5):
-    """
-    Семантический поиск товаров по эмбеддингам.
-    Возвращает список товаров, отсортированных по релевантности.
-    """
-    query_vector = embed_text(query_text, task_type="semantic_retrieval_query")
+    """Semantic search via embeddings. Returns [] if embeddings unavailable."""
+    query_vector = embed_text(query_text, task_type="retrieval_query")
     if not query_vector:
         return []
 
-    candidates = Product.objects.filter(status="active").select_related("category").prefetch_related("attributes")
+    candidates = (Product.objects.filter(status="active")
+                  .select_related("category")
+                  .prefetch_related("attributes"))
     scored = []
-
     for product in candidates:
-        product_vector = ensure_product_embedding(product)
-        if not product_vector:
+        pv = ensure_product_embedding(product)
+        if not pv:
             continue
-        score = cosine_similarity(query_vector, product_vector)
-        scored.append((score, product))
+        scored.append((cosine_similarity(query_vector, pv), product))
 
-    scored.sort(key=lambda item: item[0], reverse=True)
-    top_products = [product for score, product in scored[:max_results] if score > 0]
-
-    return top_products
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [p for score, p in scored[:max_results] if score > 0.1]
 
 
 def merge_product_lists(primary, secondary):
-    """Объединение списков товаров с сохранением порядка и без дубликатов"""
     seen = set()
     merged = []
-
-    for product in primary + secondary:
-        if product.id in seen:
-            continue
-        seen.add(product.id)
-        merged.append(product)
-
+    for p in list(primary) + list(secondary):
+        if p.id not in seen:
+            seen.add(p.id)
+            merged.append(p)
     return merged

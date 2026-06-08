@@ -10,31 +10,22 @@ logger = logging.getLogger(__name__)
 
 
 class AIAssistantConsumer(AsyncWebsocketConsumer):
+
     async def connect(self):
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
         self.room_group_name = f'aisha_{self.conversation_id}'
-
-        # Присоединение к группе комнаты
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
-
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        # Покидание группы комнаты
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
         try:
-            text_data_json = json.loads(text_data)
-            message = text_data_json.get('message', '')
+            data = json.loads(text_data)
+            message = (data.get('message') or '').strip()
 
-            if not message.strip():
+            if not message:
                 await self.send(text_data=json.dumps({
                     'status': 'error',
                     'message': 'Сообщение не может быть пустым'
@@ -43,103 +34,76 @@ class AIAssistantConsumer(AsyncWebsocketConsumer):
 
             user = self.scope['user']
 
-            # Сохранение сообщения пользователя (без обратной отправки — UI уже показывает его оптимистично)
+            # Save user message to DB (no echo back — UI already shows it optimistically)
             await self.save_message(message, 'user')
 
-            # Получение истории сообщений для контекста
+            # Send "typing" indicator so user sees activity
+            await self.send(text_data=json.dumps({'status': 'typing'}))
+
+            # Fetch context history
             conversation_history = await self.get_conversation_history()
 
-            # Обработка запроса в ИИ
-            ai_response = await database_sync_to_async(chat_with_ai_assistant)(user, message, conversation_history)
+            # Call AI (runs in thread pool to not block event loop)
+            ai_response = await database_sync_to_async(
+                chat_with_ai_assistant
+            )(user, message, conversation_history)
 
-            # Проверяем формат ответа
-            is_json_response = False
-            search_results = None
-
-            try:
-                # Проверяем, может ли ответ быть распарсен как JSON
-                if ai_response.startswith('{') and ai_response.endswith('}'):
-                    search_results = json.loads(ai_response)
-                    is_json_response = True
-                    logger.info(f"Обнаружен JSON-ответ: {search_results}")
-            except json.JSONDecodeError:
-                # Если это не валидный JSON, обрабатываем как текст
-                is_json_response = False
-                logger.info("Ответ AI не является JSON форматом")
-
-            if is_json_response and search_results:
-                # Сохраняем сообщение от ИИ о результатах поиска
-                await self.save_message(f"Вот результаты по вашему запросу:", 'ai')
-
-                # Отправляем результаты поиска
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'search_results',
-                        'results': search_results
-                    }
-                )
-            else:
-                # Это обычный текстовый ответ
-                ai_message = await self.save_message(ai_response, 'ai')
-
-                # Отправка ответа от ИИ в группу
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'chat_message',
-                        'message': ai_response,
-                        'role': 'ai',
-                        'message_id': ai_message.id
-                    }
+            if not ai_response:
+                ai_response = (
+                    "Извините, не смогла обработать запрос. "
+                    "Попробуйте ещё раз или воспользуйтесь поиском в каталоге."
                 )
 
-            logger.info(f"Сообщение от пользователя '{user.username}' обработано успешно")
+            # Save AI response
+            ai_msg = await self.save_message(ai_response, 'ai')
+
+            # Send AI response to client
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': ai_response,
+                    'role': 'ai',
+                    'message_id': ai_msg.id,
+                }
+            )
+
+            logger.info("Processed message from user '%s': %s", user.username, message[:80])
 
         except Exception as e:
-            logger.error(f"Ошибка при обработке сообщения: {str(e)}")
+            logger.error("Error in AIAssistantConsumer.receive: %s", e, exc_info=True)
             await self.send(text_data=json.dumps({
                 'status': 'error',
-                'message': f'Произошла ошибка: {str(e)}'
+                'message': 'Произошла внутренняя ошибка. Попробуйте ещё раз.'
             }))
 
     async def chat_message(self, event):
-        message = event['message']
-        role = event['role']
-        message_id = event.get('message_id')
-
-        logger.info(f"Сообщение отправлено: {message}")
-
         await self.send(text_data=json.dumps({
-            'message': message,
-            'role': role,
-            'message_id': message_id
+            'message': event['message'],
+            'role': event['role'],
+            'message_id': event.get('message_id'),
         }))
 
     async def search_results(self, event):
-        results = event['results']
-        logger.info(f"Результаты поиска отправлены: {results}")
-
         await self.send(text_data=json.dumps({
             'status': 'success',
-            'results': results
+            'results': event['results'],
         }))
 
     @database_sync_to_async
     def save_message(self, content, role):
         conversation = AIConversation.objects.get(id=self.conversation_id)
-        message = AIMessage.objects.create(
+        return AIMessage.objects.create(
             conversation=conversation,
             role=role,
-            content=content
+            content=content,
         )
-
-        logger.info(f"Сообщение сохранено: {content}")
-
-        return message
 
     @database_sync_to_async
     def get_conversation_history(self):
-        conversation = AIConversation.objects.get(id=self.conversation_id)
-        # Получаем последние 10 сообщений (или меньше) для контекста
-        return conversation.messages.order_by('-created_at')[:10][::-1]
+        try:
+            conversation = AIConversation.objects.get(id=self.conversation_id)
+            # Last 10 messages for context, in chronological order
+            return list(conversation.messages.order_by('-created_at')[:10])[::-1]
+        except AIConversation.DoesNotExist:
+            return []

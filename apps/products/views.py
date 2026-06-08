@@ -34,15 +34,19 @@ def home(request):
     return render(request, 'products/home.html', context)
 
 def product_list(request):
-    categories = Category.objects.all()
-    products = Product.objects.filter(status='active')
-    
-    # Фильтрация по категории
-    category_slug = request.GET.get('category')
+    # Top-level categories for sidebar (ordered: parents first, then children)
+    categories = Category.objects.select_related('parent').order_by('parent__id', 'name')
+    products = Product.objects.filter(status='active').select_related('category')
+
+    # Category filter — include products from all child categories too
+    category_slug = request.GET.get('category', '').strip()
     current_category = None
     if category_slug:
         current_category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=current_category)
+        # Collect this category + all direct children
+        child_ids = list(current_category.children.values_list('id', flat=True))
+        category_ids = [current_category.id] + child_ids
+        products = products.filter(category_id__in=category_ids)
     
     # Фильтрация по цене
     min_price = request.GET.get('min_price')
