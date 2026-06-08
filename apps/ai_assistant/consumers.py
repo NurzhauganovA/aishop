@@ -43,20 +43,8 @@ class AIAssistantConsumer(AsyncWebsocketConsumer):
 
             user = self.scope['user']
 
-            # Сохранение сообщения пользователя
-            user_message = await self.save_message(message, 'user')
-
-            # Отправка сообщения пользователя в группу
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': message,
-                    'role': 'user',
-                    'user_id': user.id,
-                    'message_id': user_message.id
-                }
-            )
+            # Сохранение сообщения пользователя (без обратной отправки — UI уже показывает его оптимистично)
+            await self.save_message(message, 'user')
 
             # Получение истории сообщений для контекста
             conversation_history = await self.get_conversation_history()

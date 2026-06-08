@@ -1,51 +1,75 @@
 {% extends 'base.html' %}
 
-{% block title %}Вход | Маркетплейс{% endblock %}
+{% block title %}Вход | SmartShop{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="card-title mb-0">Вход в систему</h4>
-                </div>
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        
-                        <div class="mb-3">
-                            <label for="id_username" class="form-label">Имя пользователя или Email</label>
-                            <input type="text" name="username" id="id_username" class="form-control" required>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="id_password" class="form-label">Пароль</label>
-                            <input type="password" name="password" id="id_password" class="form-control" required>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="remember_me" id="remember_me">
-                                    <label class="form-check-label" for="remember_me">
-                                        Запомнить меня
-                                    </label>
-                                </div>
-                                <a href="{% url 'reset_password_request' %}">Забыли пароль?</a>
-                            </div>
-                        </div>
-                        
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Войти</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center">
-                    <p class="mb-0">Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a></p>
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">🛍️</div>
+            <h1 class="auth-title">Добро пожаловать!</h1>
+            <p class="auth-subtitle">Войдите в свой аккаунт SmartShop</p>
+        </div>
+
+        {% if form.errors %}
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-circle"></i>
+            Неверный логин или пароль. Попробуйте ещё раз.
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label" for="id_username">Имя пользователя или Email</label>
+                <input type="text" name="username" id="id_username" class="form-control"
+                       placeholder="Введите логин или email" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="id_password">Пароль</label>
+                <div style="position:relative">
+                    <input type="password" name="password" id="id_password" class="form-control"
+                           placeholder="Введите пароль" required autocomplete="current-password" style="padding-right:44px">
+                    <button type="button" id="togglePwd" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:17px;padding:0">
+                        <i class="bi bi-eye" id="eyeIcon"></i>
+                    </button>
                 </div>
             </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-4" style="margin-top:-8px">
+                <label class="form-check">
+                    <input class="form-check-input" type="checkbox" name="remember_me">
+                    <span class="form-check-label" style="font-size:14px">Запомнить меня</span>
+                </label>
+                <a href="{% url 'reset_password_request' %}" style="font-size:14px;color:var(--primary)">Забыли пароль?</a>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-w-full btn-lg">
+                Войти <i class="bi bi-arrow-right"></i>
+            </button>
+        </form>
+
+        <div style="text-align:center;margin-top:24px;font-size:14px;color:var(--text-secondary)">
+            Нет аккаунта?
+            <a href="{% url 'register' %}" style="font-weight:600;color:var(--primary)">Зарегистрироваться</a>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('togglePwd').addEventListener('click', function() {
+    var inp = document.getElementById('id_password');
+    var icon = document.getElementById('eyeIcon');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        inp.type = 'password';
+        icon.className = 'bi bi-eye';
+    }
+});
+</script>
 {% endblock %}

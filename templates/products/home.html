@@ -1,181 +1,296 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Главная | Маркетплейс{% endblock %}
+{% block title %}SmartShop — Умный маркетплейс{% endblock %}
+
+{% block extra_css %}
+<style>
+.hero-float-card {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    padding: 14px 20px;
+    color: #fff;
+    font-size: 13px;
+}
+.hero-float-card .val {
+    font-size: 22px;
+    font-weight: 800;
+    display: block;
+}
+
+.category-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 16px;
+}
+
+.promo-banner {
+    background: linear-gradient(135deg, #1E1B4B 0%, #4C1D95 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    padding: 36px 40px;
+    position: relative;
+    color: #fff;
+}
+
+.promo-banner::after {
+    content: '🎉';
+    position: absolute;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 80px;
+    opacity: 0.3;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state .icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.scroll-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+}
+.scroll-tabs::-webkit-scrollbar { display: none; }
+
+.scroll-tab {
+    padding: 8px 18px;
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-full);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition);
+    text-decoration: none;
+    display: inline-block;
+}
+
+.scroll-tab:hover,
+.scroll-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+</style>
+{% endblock %}
 
 {% block content %}
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-content">
+            <div class="hero-tag">
+                <span>✨</span>
+                <span>AI-powered маркетплейс #1 в Казахстане</span>
+            </div>
+            <h1>
+                Найди всё что нужно<br>
+                с помощью <span class="highlight">ИИ-ассистента</span>
+            </h1>
+            <p>Умный поиск товаров, персональные рекомендации и выгодные цены — всё в одном месте</p>
+
+            <form class="hero-search" action="{% url 'product_list' %}" method="get">
+                <input type="search" name="q" placeholder="Что ищешь? Например: iPhone 15 Pro 512GB чёрный...">
+                <button type="submit">
+                    <i class="bi bi-search"></i> Найти
+                </button>
+            </form>
+
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="value">10K+</span>
+                    <span class="label">Товаров</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="value">500+</span>
+                    <span class="label">Продавцов</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="value">50K+</span>
+                    <span class="label">Покупателей</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="value">4.9★</span>
+                    <span class="label">Рейтинг</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <div class="container">
-    <!-- Популярные товары -->
-    <section class="featured-products mb-5">
-        <h2 class="mb-4">Популярные товары</h2>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-            {% for product in featured_products %}
-                <div class="col">
-                    <div class="card h-100 product-card">
-                        {% if product.images.exists %}
-                            <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-                        {% else %}
-                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
-                        {% endif %}
-                        
-                        <div class="card-body">
-                            <h5 class="card-title">{{ product.name }}</h5>
-                            <div class="rating mb-2">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= product.rating %}
-                                        <i class="bi bi-star-fill"></i>
-                                    {% elif forloop.counter <= product.rating|add:"0.5" %}
-                                        <i class="bi bi-star-half"></i>
-                                    {% else %}
-                                        <i class="bi bi-star"></i>
-                                    {% endif %}
-                                {% endfor %}
-                                <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
-                            </div>
-                            <p class="product-price">{{ product.price }} ₸</p>
-                            {% if product.old_price %}
-                                <p>
-                                    <span class="product-old-price">{{ product.old_price }} ₸</span>
-                                    <span class="product-discount">-{{ product.discount_percentage }}%</span>
-                                </p>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer">
-                            <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary w-100">Подробнее</a>
-                        </div>
-                    </div>
-                </div>
-            {% empty %}
-                <div class="col-12 text-center">
-                    <p>Пока нет товаров для отображения.</p>
-                </div>
-            {% endfor %}
+
+    <!-- ===== CATEGORIES ===== -->
+    <section class="section-sm" style="padding-top:40px">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Категории</h2>
+                <p class="section-subtitle">Выберите нужный раздел</p>
+            </div>
+            <a href="{% url 'product_list' %}" class="section-link">Все товары <i class="bi bi-arrow-right"></i></a>
         </div>
-    </section>
-    
-    <!-- Популярные категории -->
-    <section class="top-categories mb-5">
-        <h2 class="mb-4">Популярные категории</h2>
-        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-4">
+
+        {% if top_categories %}
+        <div class="category-emoji-grid">
             {% for category in top_categories %}
-                <div class="col">
-                    <a href="{% url 'product_list' %}?category={{ category.slug }}" class="text-decoration-none">
-                        <div class="card h-100 text-center category-card">
-                            {% if category.image %}
-                                <img src="{{ category.image.url }}" class="card-img-top category-image" alt="{{ category.name }}">
-                            {% else %}
-                                <div class="category-image-placeholder d-flex justify-content-center align-items-center bg-light">
-                                    <i class="bi bi-box text-muted" style="font-size: 2rem;"></i>
-                                </div>
+            <a href="{% url 'product_list' %}?category={{ category.slug }}" class="category-card">
+                <div class="category-icon">
+                    {% if category.image %}
+                        <img src="{{ category.image.url }}" alt="{{ category.name }}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">
+                    {% else %}
+                        <span class="cat-emoji">
+                            {% if 'электрон' in category.name|lower or 'техник' in category.name|lower %}📱
+                            {% elif 'одежд' in category.name|lower or 'мод' in category.name|lower %}👗
+                            {% elif 'обув' in category.name|lower %}👟
+                            {% elif 'дом' in category.name|lower or 'мебел' in category.name|lower %}🏠
+                            {% elif 'красот' in category.name|lower or 'косметик' in category.name|lower %}💄
+                            {% elif 'спорт' in category.name|lower %}⚽
+                            {% elif 'детск' in category.name|lower or 'игрушк' in category.name|lower %}🧸
+                            {% elif 'книг' in category.name|lower %}📚
+                            {% elif 'телефон' in category.name|lower or 'смартфон' in category.name|lower %}📱
+                            {% elif 'ноутбук' in category.name|lower %}💻
+                            {% elif 'автомобил' in category.name|lower or 'авто' in category.name|lower %}🚗
+                            {% elif 'ювелир' in category.name|lower or 'украшен' in category.name|lower %}💍
+                            {% elif 'часы' in category.name|lower %}⌚
+                            {% elif 'игр' in category.name|lower %}🎮
+                            {% elif 'еда' in category.name|lower or 'продукт' in category.name|lower %}🛒
+                            {% else %}🛍️
                             {% endif %}
-                            <div class="card-body">
-                                <h5 class="card-title">{{ category.name }}</h5>
-                                <p class="card-text text-muted">{{ category.product_count }} товаров</p>
-                            </div>
-                        </div>
-                    </a>
+                        </span>
+                    {% endif %}
                 </div>
-            {% empty %}
-                <div class="col-12 text-center">
-                    <p>Пока нет категорий для отображения.</p>
-                </div>
+                <span class="category-card-name">{{ category.name }}</span>
+                <span class="category-card-count">{{ category.product_count }} тов.</span>
+            </a>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">📦</div>
+            <p>Категории появятся после добавления товаров</p>
+        </div>
+        {% endif %}
     </section>
-    
-    <!-- Лидеры продаж -->
-    <section class="best-selling mb-5">
-        <h2 class="mb-4">Лидеры продаж</h2>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+
+    <!-- ===== PROMO BANNER ===== -->
+    <div class="promo-banner mb-5">
+        <div style="max-width:480px;position:relative;z-index:1">
+            <span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600;display:inline-block;margin-bottom:12px">🔥 Акция недели</span>
+            <h2 style="font-size:26px;font-weight:800;color:#fff;margin-bottom:10px">Скидки до 50% на технику</h2>
+            <p style="color:rgba(255,255,255,0.7);margin-bottom:20px;font-size:15px">Лучшие предложения от проверенных продавцов</p>
+            <a href="{% url 'product_list' %}?sort_by=price_low" class="btn btn-gradient btn-lg">
+                Смотреть акции <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- ===== FEATURED PRODUCTS ===== -->
+    <section class="section-sm">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">🆕 Новые товары</h2>
+                <p class="section-subtitle">Свежие поступления от продавцов</p>
+            </div>
+            <a href="{% url 'product_list' %}?sort_by=newest" class="section-link">Все новинки <i class="bi bi-arrow-right"></i></a>
+        </div>
+
+        {% if featured_products %}
+        <div class="products-grid">
+            {% for product in featured_products %}
+            {% include 'products/_product_card.html' %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">🛍️</div>
+            <p>Товары скоро появятся!</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary mt-3">Перейти в каталог</a>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- ===== BEST SELLING ===== -->
+    {% if best_selling %}
+    <section class="section-sm">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">🔥 Лидеры продаж</h2>
+                <p class="section-subtitle">Самые популярные товары</p>
+            </div>
+            <a href="{% url 'product_list' %}?sort_by=popularity" class="section-link">Смотреть все <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="products-grid">
             {% for product in best_selling %}
-                <div class="col">
-                    <div class="card h-100 product-card">
-                        {% if product.images.exists %}
-                            <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-                        {% else %}
-                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
-                        {% endif %}
-                        
-                        <div class="card-body">
-                            <h5 class="card-title">{{ product.name }}</h5>
-                            <div class="rating mb-2">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= product.rating %}
-                                        <i class="bi bi-star-fill"></i>
-                                    {% elif forloop.counter <= product.rating|add:"0.5" %}
-                                        <i class="bi bi-star-half"></i>
-                                    {% else %}
-                                        <i class="bi bi-star"></i>
-                                    {% endif %}
-                                {% endfor %}
-                                <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
-                            </div>
-                            <p class="product-price">{{ product.price }} ₸</p>
-                            {% if product.old_price %}
-                                <p>
-                                    <span class="product-old-price">{{ product.old_price }} ₸</span>
-                                    <span class="product-discount">-{{ product.discount_percentage }}%</span>
-                                </p>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer">
-                            <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary w-100">Подробнее</a>
-                        </div>
-                    </div>
-                </div>
-            {% empty %}
-                <div class="col-12 text-center">
-                    <p>Пока нет товаров для отображения.</p>
-                </div>
+            {% include 'products/_product_card.html' %}
             {% endfor %}
         </div>
     </section>
-    
-    <!-- Товары с лучшими оценками -->
-    <section class="top-rated mb-5">
-        <h2 class="mb-4">Лучшие оценки</h2>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+    {% endif %}
+
+    <!-- ===== TOP RATED ===== -->
+    {% if top_rated %}
+    <section class="section-sm" style="padding-bottom:64px">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">⭐ Топ по рейтингу</h2>
+                <p class="section-subtitle">Товары с лучшими отзывами покупателей</p>
+            </div>
+            <a href="{% url 'product_list' %}?sort_by=rating" class="section-link">Смотреть все <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="products-grid">
             {% for product in top_rated %}
-                <div class="col">
-                    <div class="card h-100 product-card">
-                        {% if product.images.exists %}
-                            <img src="{{ product.images.first.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-                        {% else %}
-                            <img src="{{ STATIC_URL }}images/placeholder.jpg" class="card-img-top product-image" alt="Изображение отсутствует">
-                        {% endif %}
-                        
-                        <div class="card-body">
-                            <h5 class="card-title">{{ product.name }}</h5>
-                            <div class="rating mb-2">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= product.rating %}
-                                        <i class="bi bi-star-fill"></i>
-                                    {% elif forloop.counter <= product.rating|add:"0.5" %}
-                                        <i class="bi bi-star-half"></i>
-                                    {% else %}
-                                        <i class="bi bi-star"></i>
-                                    {% endif %}
-                                {% endfor %}
-                                <span class="ms-1">{{ product.rating|floatformat:1 }}</span>
-                            </div>
-                            <p class="product-price">{{ product.price }} ₸</p>
-                            {% if product.old_price %}
-                                <p>
-                                    <span class="product-old-price">{{ product.old_price }} ₸</span>
-                                    <span class="product-discount">-{{ product.discount_percentage }}%</span>
-                                </p>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer">
-                            <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-sm btn-outline-primary w-100">Подробнее</a>
-                        </div>
-                    </div>
-                </div>
-            {% empty %}
-                <div class="col-12 text-center">
-                    <p>Пока нет товаров для отображения.</p>
-                </div>
+            {% include 'products/_product_card.html' %}
             {% endfor %}
         </div>
     </section>
+    {% endif %}
+
+    <!-- ===== AI FEATURES BLOCK ===== -->
+    <section class="section-sm" style="padding-bottom:64px">
+        <div style="background:linear-gradient(135deg,var(--primary-light),#E0E7FF);border-radius:24px;padding:48px 40px;text-align:center">
+            <div style="font-size:48px;margin-bottom:16px">🤖</div>
+            <h2 style="font-size:28px;font-weight:800;margin-bottom:12px;color:var(--text)">Попробуйте ИИ-ассистента AISha</h2>
+            <p style="color:var(--text-secondary);max-width:480px;margin:0 auto 28px;font-size:16px">
+                Просто опишите что ищете на русском, казахском или английском — AISha найдёт товары на нашем сайте и покажет прямые ссылки!
+            </p>
+            <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;margin-bottom:32px">
+                <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-secondary)">
+                    <span style="width:36px;height:36px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">1</span>
+                    Нажмите на кнопку 🤖 справа внизу
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-secondary)">
+                    <span style="width:36px;height:36px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">2</span>
+                    Опишите нужный товар
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-secondary)">
+                    <span style="width:36px;height:36px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">3</span>
+                    Получите ссылки на товары
+                </div>
+            </div>
+            {% if not user.is_authenticated %}
+            <a href="{% url 'register' %}" class="btn btn-primary btn-lg">
+                Зарегистрироваться и попробовать <i class="bi bi-arrow-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </section>
+
 </div>
 {% endblock %}

@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 # Инициализация Gemini API
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-# Модель, которую requested пользователь
-MODEL_NAME = 'gemini-3-flash-preview'  # Если эта модель не доступна, библиотека может выдать ошибку.
-# В таком случае замените на 'gemini-1.5-flash' или 'gemini-2.0-flash-exp'
+MODEL_NAME = 'gemini-1.5-flash'
 EMBEDDING_MODEL_NAME = "models/embedding-001"
 
 
@@ -80,8 +78,8 @@ def generate_ai_product_description(product_name, attributes):
         # Fallback на стабильную модель если экспериментальная недоступна
         if "404" in str(e) or "not found" in str(e).lower():
             try:
-                logger.info("Попытка использовать запасную модель gemini-1.5-flash")
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                logger.info("Попытка использовать запасную модель gemini-2.0-flash")
+                model = genai.GenerativeModel("gemini-2.0-flash")
                 response = model.generate_content(prompt)
                 return response.text.strip()
             except Exception as e2:
@@ -98,23 +96,27 @@ def chat_with_ai_assistant(user, message, conversation_history=None):
         AISearchQuery.objects.create(user=user, query=message)
 
         system_instruction = """
-        Ты AISha - умный ассистент маркетплейса. Твоя задача - помогать пользователям находить нужные товары,
-        отвечать на их вопросы и давать рекомендации. Говори на русском языке, будь дружелюбной,
-        полезной и информативной. 
+        Ты AISha — умный ИИ-ассистент маркетплейса SmartShop.
+        Твоя задача: помогать пользователям находить нужные товары на НАШЕМ сайте, отвечать на вопросы и давать рекомендации.
 
-        ВАЖНО: Когда пользователь просит найти товар или информацию о товаре, НЕ ВЫДУМЫВАЙ ТОВАРЫ. 
-        Вместо этого, возвращай запрос для поиска в базе данных в следующем формате JSON:
+        ЯЗЫК: Определи язык запроса пользователя и ВСЕГДА отвечай на том же языке.
+        - Если пишет по-русски → отвечай по-русски
+        - Если пишет по-казахски → отвечай по-казахски
+        - Если пишет по-английски → отвечай по-английски
+
+        ПОИСК ТОВАРОВ: Когда пользователь просит найти товар — НЕ ВЫДУМЫВАЙ товары, не ссылайся на внешние сайты.
+        Вместо этого верни JSON-запрос для поиска в нашей базе данных:
 
         {
             "search_request": true,
-            "keywords": ["ключевое слово1", "ключевое слово2"],
-            "categories": ["категория1", "категория2"],
-            "price_range": {"min": минимальная_цена, "max": максимальная_цена},
-            "filters": {"параметр1": "значение1", "параметр2": "значение2"}
+            "keywords": ["keyword1", "keyword2"],
+            "categories": ["category1"],
+            "price_range": {"min": null, "max": null},
+            "filters": {"color": "black", "storage": "512gb"}
         }
 
-        НЕ добавляй объяснений до или после JSON. Если пользователь не запрашивает поиск товара, 
-        отвечай обычным текстом без JSON.
+        НЕ добавляй никакого текста до или после JSON при поиске товара.
+        Если пользователь просто общается или задаёт вопрос — отвечай дружелюбным текстом без JSON.
         """
 
         model = genai.GenerativeModel(MODEL_NAME)
@@ -152,15 +154,16 @@ def chat_with_ai_assistant(user, message, conversation_history=None):
                 json_data = json.loads(json_str)
 
                 if isinstance(json_data, dict) and json_data.get('search_request') == True:
+                    keywords = json_data.get('keywords', [])
                     search_results = list(perform_actual_search(json_data, user))
                     vector_hits = semantic_vector_search(message, max_results=5)
-                    combined_results = merge_product_lists(vector_hits, search_results)
+                    combined_results = merge_product_lists(search_results, vector_hits)
 
                     if combined_results:
-                        return format_search_results(combined_results)
-                    return "К сожалению, товары по вашему запросу не найдены. Попробуйте изменить критерии поиска."
+                        return format_search_results(combined_results, search_keywords=keywords)
+                    q = '+'.join(keywords) if keywords else ''
+                    return f"К сожалению, товары по вашему запросу не найдены.\n\n👉 [Попробуйте расширенный поиск в каталоге](/products/?q={q})"
                 else:
-                    # Если ИИ не вернул search_request, попробуем семантический поиск напрямую
                     vector_hits = semantic_vector_search(message, max_results=5)
                     if vector_hits:
                         return format_search_results(vector_hits)
@@ -217,32 +220,37 @@ def perform_actual_search(search_params, user):
     return products
 
 
-def format_search_results(products, max_results=5):
+def format_search_results(products, max_results=5, search_keywords=None):
     """Форматирует результаты поиска для отображения пользователю"""
-    # Принимаем как QuerySet, так и обычный список
+    from urllib.parse import urlencode
     if hasattr(products, 'exists'):
         products = list(products)
 
     if not products:
-        return "К сожалению, товары по вашему запросу не найдены."
+        return "К сожалению, товары по вашему запросу не найдены. Попробуйте изменить критерии поиска."
 
     total_count = len(products)
-    products = products[:max_results]
-    result = "Вот что я нашла по вашему запросу:\n\n"
+    shown = products[:max_results]
+    result = f"Нашла **{total_count}** товар(ов) по вашему запросу:\n\n"
 
-    for i, product in enumerate(products, 1):
-        result += f"{i}. {product.name}\n"
-        result += f"   Цена: {product.price} ₸\n"  # Исправил валюту на Тенге
+    for i, product in enumerate(shown, 1):
+        url = product.get_absolute_url()
+        result += f"**{i}. [{product.name}]({url})**\n"
+        result += f"   💰 Цена: **{product.price} ₸**"
         if product.old_price and product.old_price > product.price:
-            discount = round(100 - (product.price / product.old_price * 100))
-            result += f"   Скидка: {discount}% (было {product.old_price} ₸)\n"
+            discount = round(100 - (float(product.price) / float(product.old_price) * 100))
+            result += f"  ~~{product.old_price} ₸~~ (-{discount}%)"
+        result += "\n"
         if product.description:
-            desc = product.description[:100] + "..." if len(product.description) > 100 else product.description
+            desc = product.description[:120] + "..." if len(product.description) > 120 else product.description
             result += f"   {desc}\n"
-        result += f"   Ссылка: {product.get_absolute_url()}\n\n"
+        result += f"   🔗 [Посмотреть товар]({url})\n\n"
 
     if total_count > max_results:
-        result += f"И еще {total_count - max_results} товаров. Уточните запрос, чтобы получить более точные результаты."
+        q = ' '.join(search_keywords) if search_keywords else ''
+        catalog_url = f"/products/?q={'+'.join(search_keywords)}" if search_keywords else "/products/"
+        result += f"_...и ещё {total_count - max_results} товаров_\n"
+        result += f"👉 [Посмотреть все результаты в каталоге]({catalog_url})"
 
     return result
 

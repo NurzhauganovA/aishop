@@ -51,12 +51,25 @@ else:
     print('  admin уже существует')
 "
 
-# Категории
+# Seed demo data (only if DB is empty)
 echo ""
-echo "📦 Загрузка категорий..."
-python manage.py loaddata apps/products/fixtures/initial_data.json 2>/dev/null \
-  && echo "✅ Категории загружены" \
-  || echo "  Категории уже загружены"
+echo "🛍️  Загрузка демо-товаров..."
+python manage.py shell -c "
+from apps.products.models import Product, Category
+if not Product.objects.exists():
+    import subprocess
+    result = subprocess.run(['python', 'manage.py', 'seed_data'], capture_output=True, text=True)
+    print(result.stdout[-500:] if result.stdout else 'No output')
+    if result.returncode != 0:
+        print('Seed error:', result.stderr[-300:])
+    else:
+        print('✅ Демо-товары загружены')
+else:
+    print(f'  Товаров уже {Product.objects.count()}, пропускаем')
+" 2>&1
+
+# Legacy fixtures (kept for compatibility)
+python manage.py loaddata apps/products/fixtures/initial_data.json 2>/dev/null || true
 
 # Site
 python manage.py shell -c "

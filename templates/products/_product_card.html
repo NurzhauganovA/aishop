@@ -1,0 +1,102 @@
+{% load static %}
+<div class="product-card">
+    <!-- Image -->
+    <div class="product-card-img-wrap">
+        {% if product.images.exists %}
+            <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}" loading="lazy">
+        {% else %}
+            <div class="product-card-img-placeholder">
+                {% if 'iphone' in product.name|lower or 'apple' in product.name|lower %}📱
+                {% elif 'samsung' in product.name|lower %}📱
+                {% elif 'ноутбук' in product.name|lower or 'laptop' in product.name|lower %}💻
+                {% elif 'наушник' in product.name|lower or 'headphone' in product.name|lower %}🎧
+                {% elif 'часы' in product.name|lower or 'watch' in product.name|lower %}⌚
+                {% elif 'кроссовк' in product.name|lower or 'nike' in product.name|lower or 'adidas' in product.name|lower %}👟
+                {% elif 'сумк' in product.name|lower or 'рюкзак' in product.name|lower %}👜
+                {% elif 'телевизор' in product.name|lower or 'tv' in product.name|lower %}📺
+                {% elif 'планшет' in product.name|lower or 'ipad' in product.name|lower %}📱
+                {% else %}🛍️
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <!-- Badges -->
+        {% if product.old_price and product.old_price > product.price %}
+            <span class="product-badge badge-sale">-{{ product.discount_percentage }}%</span>
+        {% endif %}
+
+        <!-- Hover actions -->
+        <div class="product-card-actions">
+            {% if user.is_authenticated %}
+            <form action="{% url 'add_to_wishlist' %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <button type="submit" class="product-action-btn {% if user.is_authenticated and product in user.wishlist.products.all %}wishlisted{% endif %}" title="В избранное">
+                    <i class="bi bi-heart{% if user.is_authenticated and product in user.wishlist.products.all %}-fill{% endif %}"></i>
+                </button>
+            </form>
+            {% endif %}
+            <a href="{% url 'product_detail_by_id' product.id %}" class="product-action-btn" title="Быстрый просмотр">
+                <i class="bi bi-eye"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Body -->
+    <div class="product-card-body">
+        {% if product.category %}
+        <div class="product-category-tag">{{ product.category.name }}</div>
+        {% endif %}
+        <a href="{% url 'product_detail_by_id' product.id %}" class="product-name" style="text-decoration:none;color:inherit">
+            {{ product.name }}
+        </a>
+
+        <!-- Rating -->
+        {% with product.rating as r %}
+        {% if r %}
+        <div class="product-rating">
+            <div class="stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= r %}
+                        <i class="bi bi-star-fill"></i>
+                    {% else %}
+                        <i class="bi bi-star"></i>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <span class="rating-count">{{ r|floatformat:1 }}</span>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Price -->
+        <div class="product-price-wrap">
+            <span class="product-price">{{ product.price }} ₸</span>
+            {% if product.old_price and product.old_price > product.price %}
+                <span class="product-old-price">{{ product.old_price }} ₸</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="product-card-footer">
+        <a href="{% url 'product_detail_by_id' product.id %}" class="btn btn-outline-primary btn-sm">
+            Подробнее
+        </a>
+        {% if user.is_authenticated %}
+        <form action="{% url 'add_to_cart' %}" method="post" style="flex:1">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <input type="hidden" name="quantity" value="1">
+            <button type="submit" class="btn btn-primary btn-sm btn-w-full" {% if product.stock == 0 %}disabled{% endif %}>
+                <i class="bi bi-bag-plus"></i>
+                {% if product.stock == 0 %}Нет{% else %}В корзину{% endif %}
+            </button>
+        </form>
+        {% else %}
+        <a href="{% url 'login' %}" class="btn btn-primary btn-sm" style="flex:1">
+            <i class="bi bi-bag-plus"></i> В корзину
+        </a>
+        {% endif %}
+    </div>
+</div>

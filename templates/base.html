@@ -4,919 +4,710 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Маркетплейс{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <title>{% block title %}SmartShop{% endblock %}</title>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <!-- Main CSS -->
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-
-    <!-- AI Assistant Styles -->
-    <style>
-        /* AI Assistant Styles */
-        .ai-assistant-wrapper {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-
-        .ai-assistant-button {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .ai-assistant-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-        }
-
-        .ai-assistant-chat {
-            position: absolute;
-            bottom: 80px;
-            right: 0;
-            width: 350px;
-            height: 500px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-            border: 1px solid #e0e0e0;
-        }
-
-        @media (max-width: 480px) {
-            .ai-assistant-chat {
-                width: 320px;
-                height: 450px;
-                bottom: 70px;
-                right: -10px;
-            }
-        }
-
-        .chat-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-        }
-
-        .chat-header h5 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .btn-close-white {
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 0;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .connection-status {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            padding: 5px 10px;
-            font-size: 12px;
-            text-align: center;
-            display: none;
-        }
-
-        .connection-status.connecting {
-            background: #ffc107;
-            color: #000;
-        }
-
-        .connection-status.connected {
-            background: #28a745;
-            color: white;
-        }
-
-        .connection-status.error {
-            background: #dc3545;
-            color: white;
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            background: #f8f9fa;
-        }
-
-        .message {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .user-message {
-            align-items: flex-end;
-        }
-
-        .ai-message {
-            align-items: flex-start;
-        }
-
-        .system-message {
-            align-items: center;
-        }
-
-        .message-content {
-            max-width: 80%;
-            padding: 10px 14px;
-            border-radius: 18px;
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-
-        .user-message .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-
-        .ai-message .message-content {
-            background: white;
-            color: #333;
-            border: 1px solid #e0e0e0;
-            border-bottom-left-radius: 4px;
-        }
-
-        .system-message .message-content {
-            background: #f0f0f0;
-            color: #666;
-            font-style: italic;
-            font-size: 12px;
-            max-width: 90%;
-            text-align: center;
-        }
-
-        .message-time {
-            font-size: 11px;
-            color: #999;
-            margin-top: 4px;
-            padding: 0 4px;
-        }
-
-        .chat-input {
-            padding: 15px;
-            background: white;
-            border-top: 1px solid #e0e0e0;
-            display: flex;
-            gap: 10px;
-        }
-
-        .chat-input input {
-            flex: 1;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            padding: 10px 15px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.3s ease;
-        }
-
-        .chat-input input:focus {
-            border-color: #667eea;
-        }
-
-        .chat-input button {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .chat-input button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        /* Search Results */
-        .product-card {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
-        }
-
-        .product-info {
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-        }
-
-        .product-image {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 6px;
-            flex-shrink: 0;
-        }
-
-        .product-name {
-            margin: 0 0 6px 0;
-            font-size: 13px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .product-price {
-            font-size: 14px;
-            font-weight: 700;
-            color: #28a745;
-        }
-
-        .product-link {
-            display: inline-block;
-            padding: 4px 8px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        /* AI Hint */
-        .ai-hint {
-            position: absolute;
-            bottom: 70px;
-            right: 0;
-            background: white;
-            padding: 10px 15px;
-            border-radius: 10px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-            max-width: 250px;
-            cursor: pointer;
-            font-size: 14px;
-            animation: fadeInUp 0.3s ease;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    </style>
 
     {% block extra_css %}{% endblock %}
 </head>
-<body data-user-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <div class="container">
-                <a class="navbar-brand" href="{% url 'home' %}">SmartShop</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <form class="d-flex mx-auto" action="{% url 'product_list' %}" method="get">
-                        <input class="form-control me-2" type="search" name="q" placeholder="Поиск товаров..." aria-label="Search">
-                        <button class="btn btn-outline-success" type="submit">Поиск</button>
-                    </form>
-                    <ul class="navbar-nav ms-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'product_list' %}">Товары</a>
-                        </li>
-                        {% if user.is_authenticated %}
-                            <li class="nav-item">
-                                <a class="nav-link position-relative" href="{% url 'cart' %}">
-                                    <i class="bi bi-cart"></i> Корзина
-                                    {% if cart_items_count %}
-                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                            {{ cart_items_count }}
-                                        </span>
-                                    {% endif %}
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link position-relative" href="{% url 'wishlist' %}">
-                                    <i class="bi bi-heart"></i> Избранное
-                                    {% if wishlist_items_count %}
-                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                            {{ wishlist_items_count }}
-                                        </span>
-                                    {% endif %}
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link position-relative" href="{% url 'chat_list' %}">
-                                    <i class="bi bi-chat"></i> Сообщения
-                                    {% if unread_messages_count %}
-                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                            {{ unread_messages_count }}
-                                        </span>
-                                    {% endif %}
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link position-relative" href="{% url 'notification_list' %}">
-                                    <i class="bi bi-bell"></i> Уведомления
-                                    {% if notification_count %}
-                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                            {{ notification_count }}
-                                        </span>
-                                    {% endif %}
-                                </a>
-                            </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    {{ user.username }}
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                    {% if user.is_seller %}
-                                        <li><a class="dropdown-item" href="{% url 'seller_dashboard' %}">Панель продавца</a></li>
-                                    {% endif %}
-                                    <li><a class="dropdown-item" href="{% url 'profile' %}">Мой профиль</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'my_orders' %}">Мои заказы</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{% url 'logout' %}">Выйти</a></li>
-                                </ul>
-                            </li>
-                        {% else %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'login' %}">Войти</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'register' %}">Регистрация</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
+<body>
 
-    <main class="container py-4">
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+<!-- ===== NAVBAR ===== -->
+<nav class="navbar">
+    <div class="container">
+        <!-- Brand -->
+        <a class="navbar-brand" href="{% url 'home' %}">
+            <div class="brand-icon">🛍️</div>
+            <span class="brand-name">Smart<span class="brand-ai">Shop</span></span>
+        </a>
 
-        {% block content %}{% endblock %}
-    </main>
+        <!-- Search -->
+        <form class="navbar-search" action="{% url 'product_list' %}" method="get">
+            <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Поиск товаров по SmartShop...">
+            <button type="submit"><i class="bi bi-search"></i></button>
+        </form>
 
-    <footer class="footer mt-auto py-3 bg-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-4">
-                    <h5>О нас</h5>
-                    <p>Маркетплейс с искусственным интеллектом для удобного шоппинга.</p>
-                </div>
-                <div class="col-md-4">
-                    <h5>Ссылки</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="{% url 'home' %}">Главная</a></li>
-                        <li><a href="{% url 'product_list' %}">Каталог</a></li>
-                        <li><a href="#">О нас</a></li>
-                        <li><a href="#">Контакты</a></li>
-                    </ul>
-                </div>
-                <div class="col-md-4">
-                    <h5>Контакты</h5>
-                    <address>
-                        <p>Адрес: г. Алматы, ул. Примерная, 123</p>
-                        <p>Телефон: +7 (727) 123-45-67</p>
-                        <p>Email: info@marketplace.kz</p>
-                    </address>
-                </div>
-            </div>
-            <hr>
-            <p class="text-center">© 2025 Маркетплейс с ИИ. Все права защищены.</p>
-        </div>
-    </footer>
-
-    <!-- AI Assistant Widget (only for authenticated users) -->
-    {% if user.is_authenticated %}
-    <div class="ai-assistant-wrapper">
-        <button id="openAIChat" class="ai-assistant-button" title="Открыть чат с AI помощником">
-            <i class="bi bi-robot"></i>
+        <!-- Mobile toggle -->
+        <button class="navbar-toggler" id="navToggler" aria-label="Меню">
+            <i class="bi bi-list"></i>
         </button>
 
-        <div id="aiAssistantChat" class="ai-assistant-chat">
-            <div class="chat-header">
-                <h5>AISha - Ваш помощник</h5>
-                <button id="closeAIChat" class="btn-close-white" title="Закрыть чат">
-                    <i class="bi bi-x"></i>
-                </button>
-            </div>
+        <!-- Nav links -->
+        <ul class="navbar-nav" id="navbarNav">
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'product_list' %}">
+                    <i class="bi bi-grid"></i> Каталог
+                </a>
+            </li>
 
-            <div id="aiChatMessages" class="chat-messages">
-                <!-- Сообщения будут добавляться динамически -->
-            </div>
+            {% if user.is_authenticated %}
+                <li class="nav-item" style="position:relative">
+                    <a class="nav-link" href="{% url 'cart' %}">
+                        <i class="bi bi-bag"></i> Корзина
+                        {% if cart_items_count %}<span class="nav-badge">{{ cart_items_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li class="nav-item" style="position:relative">
+                    <a class="nav-link" href="{% url 'wishlist' %}">
+                        <i class="bi bi-heart"></i>
+                        {% if wishlist_items_count %}<span class="nav-badge">{{ wishlist_items_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li class="nav-item" style="position:relative">
+                    <a class="nav-link" href="{% url 'notification_list' %}">
+                        <i class="bi bi-bell"></i>
+                        {% if notification_count %}<span class="nav-badge">{{ notification_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li class="nav-item" style="position:relative">
+                    <a class="nav-link" href="{% url 'chat_list' %}">
+                        <i class="bi bi-chat-dots"></i>
+                        {% if unread_messages_count %}<span class="nav-badge">{{ unread_messages_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li class="nav-item" id="userDropdownWrap">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdownBtn">
+                        <i class="bi bi-person-circle"></i> {{ user.username }}
+                    </a>
+                    <div class="dropdown-menu" id="userDropdown">
+                        {% if user.is_seller %}
+                            <a class="dropdown-item" href="{% url 'seller_dashboard' %}">
+                                <i class="bi bi-speedometer2"></i> Панель продавца
+                            </a>
+                        {% endif %}
+                        <a class="dropdown-item" href="{% url 'profile' %}">
+                            <i class="bi bi-person"></i> Профиль
+                        </a>
+                        <a class="dropdown-item" href="{% url 'my_orders' %}">
+                            <i class="bi bi-box-seam"></i> Мои заказы
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="{% url 'logout' %}">
+                            <i class="bi bi-box-arrow-right"></i> Выйти
+                        </a>
+                    </div>
+                </li>
+            {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'login' %}">
+                        <i class="bi bi-box-arrow-in-right"></i> Войти
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'register' %}" style="background:var(--primary);border-radius:var(--radius-sm);color:#fff!important;padding:8px 14px;">
+                        Регистрация
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+</nav>
 
-            <div class="chat-input">
-                <input type="text" id="aiMessageInput" placeholder="Напишите сообщение..." maxlength="2000">
-                <button id="sendAIMessage" disabled title="Отправить сообщение">
-                    <i class="bi bi-send"></i>
-                </button>
+<!-- ===== MAIN ===== -->
+<main>
+    {% if messages %}
+        <div class="container" style="padding-top:16px">
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">
+                    <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 col-md-4 mb-4">
+                <div class="footer-brand">
+                    <div class="brand-icon">🛍️</div>
+                    <span class="footer-brand-name">SmartShop</span>
+                </div>
+                <p class="footer-desc">Умный маркетплейс с ИИ-ассистентом для удобного и быстрого шоппинга в Казахстане.</p>
+                <div class="d-flex gap-3">
+                    <a href="#" style="color:rgba(255,255,255,0.5);font-size:20px"><i class="bi bi-instagram"></i></a>
+                    <a href="#" style="color:rgba(255,255,255,0.5);font-size:20px"><i class="bi bi-telegram"></i></a>
+                    <a href="#" style="color:rgba(255,255,255,0.5);font-size:20px"><i class="bi bi-facebook"></i></a>
+                </div>
+            </div>
+            <div class="col-6 col-md-2 mb-4">
+                <p class="footer-heading">Каталог</p>
+                <ul class="footer-links">
+                    <li><a href="{% url 'product_list' %}">Все товары</a></li>
+                    <li><a href="{% url 'product_list' %}?sort_by=newest">Новинки</a></li>
+                    <li><a href="{% url 'product_list' %}?sort_by=popularity">Популярное</a></li>
+                    <li><a href="{% url 'product_list' %}?sort_by=rating">Топ рейтинг</a></li>
+                </ul>
+            </div>
+            <div class="col-6 col-md-2 mb-4">
+                <p class="footer-heading">Покупателям</p>
+                <ul class="footer-links">
+                    {% if user.is_authenticated %}
+                        <li><a href="{% url 'profile' %}">Мой профиль</a></li>
+                        <li><a href="{% url 'my_orders' %}">Мои заказы</a></li>
+                        <li><a href="{% url 'wishlist' %}">Избранное</a></li>
+                        <li><a href="{% url 'cart' %}">Корзина</a></li>
+                    {% else %}
+                        <li><a href="{% url 'login' %}">Вход</a></li>
+                        <li><a href="{% url 'register' %}">Регистрация</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            <div class="col-12 col-md-4 mb-4">
+                <p class="footer-heading">Контакты</p>
+                <ul class="footer-links">
+                    <li><a href="tel:+77271234567"><i class="bi bi-telephone me-2"></i>+7 (727) 123-45-67</a></li>
+                    <li><a href="mailto:info@smartshop.kz"><i class="bi bi-envelope me-2"></i>info@smartshop.kz</a></li>
+                    <li><span style="color:rgba(255,255,255,0.5)"><i class="bi bi-geo-alt me-2"></i>г. Алматы, Казахстан</span></li>
+                </ul>
             </div>
         </div>
+        <hr class="footer-divider">
+        <div class="footer-bottom">
+            <span>© 2025 SmartShop. Все права защищены.</span>
+            <span>Сделано в 🇰🇿 Казахстане</span>
+        </div>
     </div>
-    {% endif %}
+</footer>
 
-    <!-- CSRF Token for AJAX requests -->
-    <meta name="csrf-token" content="{{ csrf_token }}">
+<!-- ===== AI ASSISTANT WIDGET ===== -->
+{% if user.is_authenticated %}
+<div class="ai-assistant-wrapper" id="aiAssistantWrapper">
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Toggle button -->
+    <button id="openAIChat" class="ai-assistant-button" title="AISha - ИИ ассистент">
+        <i class="bi bi-robot" id="aiChatIcon"></i>
+    </button>
 
-    <!-- Main JS -->
-    <script src="{% static 'js/main.js' %}"></script>
+    <!-- Chat window -->
+    <div id="aiAssistantChat" class="ai-assistant-chat">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="chat-header-avatar">🤖</div>
+            <div class="chat-header-info">
+                <h5>AISha</h5>
+                <span><span class="online-dot" id="onlineDot"></span><span id="aiStatusText">Подключение...</span></span>
+            </div>
+            <div class="chat-header-actions">
+                <button class="chat-header-btn" id="clearChatBtn" title="Новый диалог"><i class="bi bi-arrow-counterclockwise"></i></button>
+                <button class="chat-header-btn" id="closeAIChat" title="Закрыть"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="connection-status" id="aiConnectionStatus"></div>
+        </div>
 
-    <!-- AI Assistant JS (only for authenticated users) -->
-    {% if user.is_authenticated %}
-    <script>
-        // Inline AI Assistant JavaScript
-        document.addEventListener('DOMContentLoaded', function() {
-            // Элементы интерфейса
-            const openAIChatBtn = document.getElementById('openAIChat');
-            const closeAIChatBtn = document.getElementById('closeAIChat');
-            const aiAssistantChat = document.getElementById('aiAssistantChat');
-            const aiChatMessages = document.getElementById('aiChatMessages');
-            const aiMessageInput = document.getElementById('aiMessageInput');
-            const sendAIMessageBtn = document.getElementById('sendAIMessage');
+        <!-- Messages -->
+        <div id="aiChatMessages" class="chat-messages"></div>
 
-            // WebSocket соединение
-            let aiSocket = null;
-            let conversationId = localStorage.getItem('aiConversationId');
-            let isConnecting = false;
-            let reconnectAttempts = 0;
-            const maxReconnectAttempts = 5;
+        <!-- Quick actions -->
+        <div class="chat-quick-actions" id="quickActions">
+            <button class="quick-action-chip" onclick="sendQuickMsg(this)">📱 Айфоны</button>
+            <button class="quick-action-chip" onclick="sendQuickMsg(this)">💻 Ноутбуки</button>
+            <button class="quick-action-chip" onclick="sendQuickMsg(this)">👟 Кроссовки</button>
+            <button class="quick-action-chip" onclick="sendQuickMsg(this)">🎧 Наушники</button>
+        </div>
 
-            // Функция для отображения статуса соединения
-            function updateConnectionStatus(status, message) {
-                let statusElement = document.getElementById('aiConnectionStatus');
-                if (!statusElement) {
-                    statusElement = document.createElement('div');
-                    statusElement.id = 'aiConnectionStatus';
-                    statusElement.className = 'connection-status';
-                    const chatHeader = aiAssistantChat.querySelector('.chat-header');
-                    if (chatHeader) {
-                        chatHeader.appendChild(statusElement);
-                    }
-                }
+        <!-- Input -->
+        <div class="chat-input">
+            <input type="text" id="aiMessageInput" placeholder="Спросите меня о товарах..." maxlength="500" disabled>
+            <button id="sendAIMessage" class="chat-send-btn" disabled title="Отправить">
+                <i class="bi bi-send-fill"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
 
-                statusElement.className = `connection-status ${status}`;
-                statusElement.textContent = message || '';
+<!-- CSRF meta -->
+<meta name="csrf-token" content="{{ csrf_token }}">
 
-                if (status === 'connected') {
-                    setTimeout(() => {
-                        statusElement.style.display = 'none';
-                    }, 2000);
-                } else {
-                    statusElement.style.display = 'block';
-                }
+<!-- Main JS (minimal — no jQuery, no Bootstrap JS needed) -->
+<script>
+// ========== Navbar dropdown ==========
+(function() {
+    const btn = document.getElementById('userDropdownBtn');
+    const menu = document.getElementById('userDropdown');
+    if (!btn || !menu) return;
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        menu.classList.toggle('show');
+    });
+    document.addEventListener('click', function() { menu.classList.remove('show'); });
+    menu.addEventListener('click', function(e) { e.stopPropagation(); });
+})();
+
+// ========== Mobile nav toggle ==========
+(function() {
+    const toggle = document.getElementById('navToggler');
+    const nav = document.getElementById('navbarNav');
+    if (!toggle || !nav) return;
+    toggle.addEventListener('click', function() { nav.classList.toggle('show'); });
+})();
+
+// ========== Bootstrap carousel shim ==========
+document.querySelectorAll('[data-bs-target]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var target = document.querySelector(btn.getAttribute('data-bs-target'));
+        if (!target) return;
+        var items = target.querySelectorAll('.carousel-item');
+        var active = target.querySelector('.carousel-item.active');
+        var idx = Array.from(items).indexOf(active);
+        var slideTo = btn.getAttribute('data-bs-slide-to');
+        var direction = btn.getAttribute('data-bs-slide');
+        var next;
+        if (slideTo !== null) {
+            next = parseInt(slideTo);
+        } else if (direction === 'next') {
+            next = (idx + 1) % items.length;
+        } else {
+            next = (idx - 1 + items.length) % items.length;
+        }
+        if (active) active.classList.remove('active');
+        items[next].classList.add('active');
+    });
+});
+
+// ========== Close alerts ==========
+document.querySelectorAll('.alert').forEach(function(a) {
+    a.style.cursor = 'default';
+});
+</script>
+
+{% if user.is_authenticated %}
+<script>
+// ========== AI ASSISTANT ==========
+(function() {
+    const openBtn       = document.getElementById('openAIChat');
+    const closeBtn      = document.getElementById('closeAIChat');
+    const clearBtn      = document.getElementById('clearChatBtn');
+    const chatWin       = document.getElementById('aiAssistantChat');
+    const messagesEl    = document.getElementById('aiChatMessages');
+    const inputEl       = document.getElementById('aiMessageInput');
+    const sendBtn       = document.getElementById('sendAIMessage');
+    const statusEl      = document.getElementById('aiConnectionStatus');
+    const statusText    = document.getElementById('aiStatusText');
+    const onlineDot     = document.getElementById('onlineDot');
+    const quickActions  = document.getElementById('quickActions');
+    const aiIcon        = document.getElementById('aiChatIcon');
+
+    let socket = null;
+    let conversationId = localStorage.getItem('aiConversationId');
+    let isConnecting = false;
+    let reconnects = 0;
+    const MAX_RECONNECTS = 4;
+    let typingIndicator = null;
+
+    // ---- helpers ----
+    function getCsrf() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.content : '';
+    }
+
+    function now() {
+        return new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function scrollBottom() {
+        setTimeout(function() { messagesEl.scrollTop = messagesEl.scrollHeight; }, 60);
+    }
+
+    function setStatus(type, text) {
+        if (type === 'connected') {
+            statusEl.style.display = 'none';
+            statusText.textContent = 'Онлайн';
+            onlineDot.style.background = '#4ADE80';
+            onlineDot.style.boxShadow = '0 0 6px #4ADE80';
+            setInputEnabled(true);
+        } else if (type === 'connecting') {
+            statusEl.className = 'connection-status connecting';
+            statusEl.style.display = 'block';
+            statusEl.textContent = text || 'Подключение...';
+            statusText.textContent = 'Подключение...';
+            onlineDot.style.background = '#FBBF24';
+            onlineDot.style.boxShadow = 'none';
+        } else if (type === 'error') {
+            statusEl.className = 'connection-status error';
+            statusEl.style.display = 'block';
+            statusEl.textContent = text || 'Ошибка';
+            statusText.textContent = 'Нет связи';
+            onlineDot.style.background = '#EF4444';
+            onlineDot.style.boxShadow = 'none';
+            setInputEnabled(false);
+        }
+    }
+
+    function setInputEnabled(enabled) {
+        inputEl.disabled = !enabled;
+        sendBtn.disabled = !enabled;
+    }
+
+    // ---- message rendering ----
+    function addMessage(content, role) {
+        removeTyping();
+        var el = document.createElement('div');
+        el.className = 'message ' + (role === 'user' ? 'user-message' : role === 'system' ? 'system-message' : 'ai-message');
+
+        var bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+
+        if (role === 'ai') {
+            bubble.innerHTML = formatAI(content);
+        } else {
+            bubble.textContent = content;
+        }
+
+        var time = document.createElement('div');
+        time.className = 'message-time';
+        time.textContent = now();
+
+        el.appendChild(bubble);
+        el.appendChild(time);
+        messagesEl.appendChild(el);
+        scrollBottom();
+
+        // Hide quick actions after first user message
+        if (role === 'user' && quickActions) {
+            quickActions.style.display = 'none';
+        }
+    }
+
+    function addSystemMsg(text) {
+        var el = document.createElement('div');
+        el.className = 'message system-message';
+        var b = document.createElement('div');
+        b.className = 'message-bubble';
+        b.textContent = text;
+        el.appendChild(b);
+        messagesEl.appendChild(el);
+        scrollBottom();
+    }
+
+    function showTyping() {
+        removeTyping();
+        var el = document.createElement('div');
+        el.className = 'message ai-message';
+        el.id = 'typingIndicator';
+        var ind = document.createElement('div');
+        ind.className = 'typing-indicator';
+        ind.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+        el.appendChild(ind);
+        messagesEl.appendChild(el);
+        scrollBottom();
+    }
+
+    function removeTyping() {
+        var t = document.getElementById('typingIndicator');
+        if (t) t.remove();
+    }
+
+    // ---- AI response formatting ----
+    function formatAI(text) {
+        if (!text) return '';
+        // Bold: **text**
+        text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // Strikethrough: ~~text~~
+        text = text.replace(/~~(.*?)~~/g, '<del>$1</del>');
+        // Italic: *text* (but not **)
+        text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+        // Links: [text](url)
+        text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, label, url) {
+            return '<a href="' + url + '" target="_self">' + label + ' →</a>';
+        });
+        // Newlines
+        text = text.replace(/\n/g, '<br>');
+        return text;
+    }
+
+    // ---- WebSocket ----
+    function connect() {
+        if (!conversationId || isConnecting) return;
+        if (socket) { try { socket.close(); } catch(e) {} socket = null; }
+
+        isConnecting = true;
+        setStatus('connecting');
+
+        var wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/aisha/' + conversationId + '/';
+        socket = new WebSocket(wsUrl);
+
+        var timeout = setTimeout(function() {
+            if (socket && socket.readyState === WebSocket.CONNECTING) {
+                socket.close();
+                handleError('Таймаут подключения');
             }
+        }, 10000);
 
-            // Функция для открытия чата с ИИ
-            function openAIChat() {
-                aiAssistantChat.style.display = 'flex';
-                aiMessageInput.focus();
-
-                if (!conversationId) {
-                    createNewConversation();
-                } else {
-                    loadConversationHistory();
-                }
+        socket.onopen = function() {
+            clearTimeout(timeout);
+            isConnecting = false;
+            reconnects = 0;
+            setStatus('connected');
+            if (messagesEl.children.length === 0) {
+                addMessage('Привет! Я AISha — ИИ-ассистент SmartShop 🤖\n\nЯ помогу найти товары на нашем сайте. Просто опишите что ищете — например:\n**«Покажи чёрные iPhone 15 с 512 ГБ»**\nи я найду их в каталоге с прямыми ссылками!', 'ai');
             }
+        };
 
-            // Создание нового диалога
-            function createNewConversation() {
-                updateConnectionStatus('connecting', 'Создание нового диалога...');
+        socket.onmessage = function(e) {
+            try {
+                var data = JSON.parse(e.data);
+                removeTyping();
 
-                fetch('/aisha/create_conversation/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'success') {
-                        conversationId = data.conversation_id;
-                        localStorage.setItem('aiConversationId', conversationId);
-                        console.log('Новый диалог создан с ID:', conversationId);
-                        connectWebSocket();
-                    } else {
-                        throw new Error(data.message || 'Ошибка создания диалога');
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка создания диалога:', error);
-                    updateConnectionStatus('error', 'Ошибка создания диалога');
-                    addSystemMessage(`Ошибка создания диалога: ${error.message}`);
-                });
-            }
-
-            // Загрузка истории диалога
-            function loadConversationHistory() {
-                updateConnectionStatus('connecting', 'Загрузка истории...');
-
-                fetch(`/aisha/get_conversation_history/${conversationId}/`)
-                .then(response => {
-                    if (!response.ok) {
-                        if (response.status === 404) {
-                            localStorage.removeItem('aiConversationId');
-                            conversationId = null;
-                            createNewConversation();
-                            return null;
-                        }
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data && data.status === 'success') {
-                        aiChatMessages.innerHTML = '';
-                        data.messages.forEach(msg => {
-                            const messageClass = msg.role === 'user' ? 'user-message' : 'ai-message';
-                            addMessageToChat(msg.content, messageClass, false);
-                        });
-                        scrollToBottom();
-                        connectWebSocket();
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка загрузки истории:', error);
-                    updateConnectionStatus('error', 'Ошибка загрузки истории');
-                    localStorage.removeItem('aiConversationId');
-                    conversationId = null;
-                    createNewConversation();
-                });
-            }
-
-            // Подключение к WebSocket
-            function connectWebSocket() {
-                if (!conversationId || isConnecting) return;
-
-                isConnecting = true;
-                updateConnectionStatus('connecting', 'Подключение...');
-
-                if (aiSocket) {
-                    aiSocket.close();
-                    aiSocket = null;
-                }
-
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-                const wsUrl = `${wsProtocol}${window.location.host}/ws/aisha/${conversationId}/`;
-
-                console.log('Подключение к WebSocket:', wsUrl);
-
-                try {
-                    aiSocket = new WebSocket(wsUrl);
-
-                    const connectionTimeout = setTimeout(() => {
-                        if (aiSocket && aiSocket.readyState === WebSocket.CONNECTING) {
-                            console.log('Таймаут подключения WebSocket');
-                            aiSocket.close();
-                            handleConnectionError('Таймаут подключения');
-                        }
-                    }, 10000);
-
-                    aiSocket.onopen = function(e) {
-                        clearTimeout(connectionTimeout);
-                        isConnecting = false;
-                        reconnectAttempts = 0;
-                        console.log('WebSocket соединение установлено');
-                        updateConnectionStatus('connected', 'Подключено');
-
-                        if (sendAIMessageBtn) {
-                            sendAIMessageBtn.disabled = false;
-                        }
-
-                        if (aiChatMessages.children.length === 0) {
-                            addMessageToChat('Привет! Я AISha, ваш персональный помощник. Чем могу помочь?', 'ai-message');
-                        }
-                    };
-
-                    aiSocket.onmessage = function(event) {
-                        console.log('Получено сообщение от WebSocket:', event.data);
-
-                        try {
-                            const data = JSON.parse(event.data);
-
-                            if (data.status === 'error') {
-                                addSystemMessage(`Ошибка: ${data.message}`);
-                                return;
-                            }
-
-                            if (data.status === 'success' && data.results) {
-                                handleSearchResults(data.results);
-                            } else if (data.message !== undefined) {
-                                const messageClass = data.role === 'user' ? 'user-message' : 'ai-message';
-                                addMessageToChat(data.message, messageClass);
-                            }
-
-                        } catch (error) {
-                            console.error('Ошибка обработки сообщения:', error);
-                            addSystemMessage('Ошибка обработки ответа от сервера');
-                        }
-                    };
-
-                    aiSocket.onclose = function(e) {
-                        clearTimeout(connectionTimeout);
-                        isConnecting = false;
-                        console.log('WebSocket соединение закрыто, код:', e.code);
-
-                        if (sendAIMessageBtn) {
-                            sendAIMessageBtn.disabled = true;
-                        }
-
-                        if (e.code !== 1000 && aiAssistantChat.style.display !== 'none') {
-                            handleConnectionError('Соединение потеряно');
-                        }
-                    };
-
-                    aiSocket.onerror = function(e) {
-                        clearTimeout(connectionTimeout);
-                        isConnecting = false;
-                        console.error('WebSocket ошибка:', e);
-                        handleConnectionError('Ошибка соединения');
-                    };
-
-                } catch (error) {
-                    isConnecting = false;
-                    console.error('Ошибка создания WebSocket:', error);
-                    handleConnectionError(`Ошибка создания соединения: ${error.message}`);
-                }
-            }
-
-            // Обработка ошибок соединения
-            function handleConnectionError(errorMessage) {
-                updateConnectionStatus('error', errorMessage);
-
-                if (reconnectAttempts < maxReconnectAttempts && aiAssistantChat.style.display !== 'none') {
-                    reconnectAttempts++;
-                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
-
-                    console.log(`Попытка переподключения ${reconnectAttempts}/${maxReconnectAttempts} через ${delay}ms`);
-                    updateConnectionStatus('connecting', `Переподключение через ${Math.ceil(delay/1000)}с...`);
-
-                    setTimeout(() => {
-                        if (aiAssistantChat.style.display !== 'none') {
-                            connectWebSocket();
-                        }
-                    }, delay);
-                } else {
-                    updateConnectionStatus('error', 'Не удалось подключиться. Обновите страницу.');
-                    addSystemMessage('Не удалось подключиться к серверу. Пожалуйста, обновите страницу.');
-                }
-            }
-
-            // Обработка результатов поиска
-            function handleSearchResults(results) {
-                addMessageToChat('Вот что я нашла по вашему запросу:', 'ai-message');
-
-                if (results && results.length > 0) {
-                    const resultsContainer = document.createElement('div');
-                    resultsContainer.className = 'search-results-container';
-
-                    results.forEach(item => {
-                        const productCard = createProductCard(item);
-                        resultsContainer.appendChild(productCard);
-                    });
-
-                    const messageElement = document.createElement('div');
-                    messageElement.className = 'message ai-message';
-                    messageElement.appendChild(resultsContainer);
-                    aiChatMessages.appendChild(messageElement);
-                } else {
-                    addMessageToChat('К сожалению, товары по вашему запросу не найдены.', 'ai-message');
-                }
-
-                scrollToBottom();
-            }
-
-            // Создание карточки товара
-            function createProductCard(product) {
-                const card = document.createElement('div');
-                card.className = 'product-card';
-
-                card.innerHTML = `
-                    <div class="product-info">
-                        ${product.image ?
-                            `<img src="${product.image}" alt="${product.name}" class="product-image">` :
-                            '<div class="product-placeholder">📦</div>'
-                        }
-                        <div class="product-details">
-                            <h6 class="product-name">${product.name}</h6>
-                            <div class="product-price">${product.price} руб.</div>
-                            ${product.old_price ?
-                                `<div class="product-old-price">${product.old_price} руб.</div>` :
-                                ''
-                            }
-                            <a href="${product.url}" class="product-link" target="_blank">Посмотреть товар</a>
-                        </div>
-                    </div>
-                `;
-
-                return card;
-            }
-
-            // Закрытие чата
-            function closeAIChat() {
-                aiAssistantChat.style.display = 'none';
-                if (aiSocket) {
-                    aiSocket.close(1000, 'Chat closed by user');
-                    aiSocket = null;
-                }
-                isConnecting = false;
-                reconnectAttempts = 0;
-            }
-
-            // Отправка сообщения
-            function sendAIMessage() {
-                const message = aiMessageInput.value.trim();
-                if (!message) return;
-
-                if (!aiSocket || aiSocket.readyState !== WebSocket.OPEN) {
-                    addSystemMessage('Соединение не установлено. Попытка переподключения...');
-                    connectWebSocket();
-
-                    setTimeout(() => {
-                        if (aiSocket && aiSocket.readyState === WebSocket.OPEN) {
-                            sendMessageToSocket(message);
-                        } else {
-                            addSystemMessage('Не удалось подключиться. Попробуйте позже.');
-                        }
-                    }, 2000);
+                if (data.status === 'error') {
+                    addSystemMsg('⚠️ ' + (data.message || 'Ошибка'));
                     return;
                 }
+                // Skip echoed user messages — they're already shown optimistically
+                if (data.role === 'user') return;
 
-                sendMessageToSocket(message);
-            }
-
-            // Отправка сообщения через WebSocket
-            function sendMessageToSocket(message) {
-                try {
-                    addMessageToChat(message, 'user-message');
-                    aiSocket.send(JSON.stringify({'message': message}));
-                    aiMessageInput.value = '';
-                    console.log('Сообщение отправлено:', message);
-                } catch (error) {
-                    console.error('Ошибка отправки сообщения:', error);
-                    addSystemMessage('Ошибка отправки сообщения. Попробуйте еще раз.');
+                if (data.status === 'success' && data.results) {
+                    handleSearchResults(data.results);
+                } else if (data.message !== undefined) {
+                    addMessage(data.message, data.role === 'ai' ? 'ai' : 'ai');
                 }
+            } catch(err) {
+                removeTyping();
+                addSystemMsg('Ошибка обработки ответа');
             }
+        };
 
-            // Добавление сообщения в чат
-            function addMessageToChat(message, messageClass, scroll = true) {
-                const messageElement = document.createElement('div');
-                messageElement.className = `message ${messageClass}`;
-
-                const messageContent = document.createElement('div');
-                messageContent.className = 'message-content';
-                messageContent.innerHTML = formatMessage(message);
-
-                const messageTime = document.createElement('div');
-                messageTime.className = 'message-time';
-                messageTime.textContent = new Date().toLocaleTimeString('ru', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-
-                messageElement.appendChild(messageContent);
-                messageElement.appendChild(messageTime);
-                aiChatMessages.appendChild(messageElement);
-
-                if (scroll) {
-                    scrollToBottom();
-                }
+        socket.onclose = function(e) {
+            clearTimeout(timeout);
+            isConnecting = false;
+            setInputEnabled(false);
+            if (e.code !== 1000 && chatWin.style.display !== 'none') {
+                handleError('Соединение потеряно');
             }
+        };
 
-            // Добавление системного сообщения
-            function addSystemMessage(message) {
-                const messageElement = document.createElement('div');
-                messageElement.className = 'message system-message';
-                messageElement.innerHTML = `<div class="message-content">${message}</div>`;
-                aiChatMessages.appendChild(messageElement);
-                scrollToBottom();
-            }
+        socket.onerror = function() {
+            clearTimeout(timeout);
+            isConnecting = false;
+            handleError('Ошибка WebSocket');
+        };
+    }
 
-            // Форматирование сообщения
-            function formatMessage(message) {
-                return message
-                    .replace(/\n/g, '<br>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\*(.*?)\*/g, '<em>$1</em>');
-            }
+    function handleError(msg) {
+        setStatus('error', msg);
+        if (reconnects < MAX_RECONNECTS && chatWin.style.display !== 'none') {
+            reconnects++;
+            var delay = Math.min(1000 * Math.pow(2, reconnects), 8000);
+            setStatus('connecting', 'Переподключение через ' + Math.ceil(delay/1000) + 'с...');
+            setTimeout(function() {
+                if (chatWin.style.display !== 'none') connect();
+            }, delay);
+        } else {
+            addSystemMsg('Не удалось подключиться. Обновите страницу.');
+        }
+    }
 
-            // Прокрутка до конца
-            function scrollToBottom() {
-                setTimeout(() => {
-                    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-                }, 100);
-            }
-
-            // Получение CSRF-токена
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            }
-
-            // События
-            if (openAIChatBtn) {
-                openAIChatBtn.addEventListener('click', openAIChat);
-            }
-
-            if (closeAIChatBtn) {
-                closeAIChatBtn.addEventListener('click', closeAIChat);
-            }
-
-            if (sendAIMessageBtn) {
-                sendAIMessageBtn.addEventListener('click', sendAIMessage);
-            }
-
-            if (aiMessageInput) {
-                aiMessageInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendAIMessage();
-                    }
-                });
-            }
-
-            // Закрытие чата при клике вне его области
-            document.addEventListener('click', function(e) {
-                if (aiAssistantChat &&
-                    aiAssistantChat.style.display !== 'none' &&
-                    !aiAssistantChat.contains(e.target) &&
-                    !openAIChatBtn.contains(e.target)) {
-                    closeAIChat();
-                }
-            });
-
-            // Предотвращение закрытия при клике внутри чата
-            if (aiAssistantChat) {
-                aiAssistantChat.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                });
-            }
+    // ---- Search results (JSON format) ----
+    function handleSearchResults(results) {
+        addMessage('Вот что нашла по вашему запросу:', 'ai');
+        var wrap = document.createElement('div');
+        wrap.className = 'message ai-message';
+        var container = document.createElement('div');
+        container.style.maxWidth = '90%';
+        (Array.isArray(results) ? results : []).forEach(function(item) {
+            container.appendChild(makeProductCard(item));
         });
-    </script>
-    {% endif %}
+        if (!results || results.length === 0) {
+            var nf = document.createElement('div');
+            nf.className = 'message-bubble';
+            nf.textContent = 'Товары не найдены.';
+            wrap.appendChild(nf);
+        } else {
+            wrap.appendChild(container);
+        }
+        messagesEl.appendChild(wrap);
+        scrollBottom();
+    }
 
-    {% block extra_js %}{% endblock %}
+    function makeProductCard(p) {
+        var card = document.createElement('div');
+        card.className = 'ai-product-card';
+        var inner = document.createElement('div');
+        inner.className = 'ai-product-inner';
+        var imgEl;
+        if (p.image) {
+            imgEl = document.createElement('img');
+            imgEl.src = p.image;
+            imgEl.alt = p.name || '';
+            imgEl.className = 'ai-product-img';
+        } else {
+            imgEl = document.createElement('div');
+            imgEl.className = 'ai-product-placeholder';
+            imgEl.textContent = '📦';
+        }
+        var info = document.createElement('div');
+        info.style.flex = '1';
+        info.style.minWidth = '0';
+        var name = document.createElement('div');
+        name.className = 'ai-product-name';
+        name.textContent = p.name || '';
+        var price = document.createElement('div');
+        price.className = 'ai-product-price';
+        price.textContent = (p.price || '') + ' ₸';
+        var link = document.createElement('a');
+        link.className = 'ai-product-link';
+        link.href = p.url || '#';
+        link.textContent = 'Смотреть →';
+        info.appendChild(name);
+        info.appendChild(price);
+        info.appendChild(link);
+        inner.appendChild(imgEl);
+        inner.appendChild(info);
+        card.appendChild(inner);
+        return card;
+    }
+
+    // ---- Send message ----
+    function send() {
+        var text = inputEl.value.trim();
+        if (!text) return;
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            addSystemMsg('Нет соединения. Попытка переподключения...');
+            connect();
+            return;
+        }
+        addMessage(text, 'user');
+        inputEl.value = '';
+        showTyping();
+        try {
+            socket.send(JSON.stringify({ message: text }));
+        } catch(e) {
+            removeTyping();
+            addSystemMsg('Ошибка отправки. Попробуйте ещё раз.');
+        }
+    }
+
+    // ---- Conversation management ----
+    function openChat() {
+        chatWin.style.display = 'flex';
+        aiIcon.className = 'bi bi-x-lg';
+        inputEl.focus();
+        if (!conversationId) {
+            createConversation();
+        } else {
+            loadHistory();
+        }
+    }
+
+    function closeChat() {
+        chatWin.style.display = 'none';
+        aiIcon.className = 'bi bi-robot';
+        if (socket) { try { socket.close(1000); } catch(e) {} socket = null; }
+        isConnecting = false;
+        reconnects = 0;
+    }
+
+    function createConversation() {
+        setStatus('connecting', 'Создание диалога...');
+        fetch('/aisha/create_conversation/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() }
+        })
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(d) {
+            if (d.status === 'success') {
+                conversationId = d.conversation_id;
+                localStorage.setItem('aiConversationId', conversationId);
+                connect();
+            } else {
+                throw new Error(d.message || 'Ошибка');
+            }
+        })
+        .catch(function(e) {
+            setStatus('error', 'Ошибка создания диалога');
+            addSystemMsg('Ошибка: ' + e.message);
+        });
+    }
+
+    function loadHistory() {
+        setStatus('connecting', 'Загрузка истории...');
+        fetch('/aisha/get_conversation_history/' + conversationId + '/')
+        .then(function(r) {
+            if (r.status === 404) {
+                localStorage.removeItem('aiConversationId');
+                conversationId = null;
+                createConversation();
+                return null;
+            }
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(d) {
+            if (!d) return;
+            if (d.status === 'success') {
+                messagesEl.innerHTML = '';
+                (d.messages || []).forEach(function(m) {
+                    addMessage(m.content, m.role === 'user' ? 'user' : 'ai');
+                });
+                connect();
+            }
+        })
+        .catch(function(e) {
+            localStorage.removeItem('aiConversationId');
+            conversationId = null;
+            createConversation();
+        });
+    }
+
+    function clearChat() {
+        localStorage.removeItem('aiConversationId');
+        conversationId = null;
+        messagesEl.innerHTML = '';
+        if (quickActions) quickActions.style.display = 'flex';
+        if (socket) { try { socket.close(1000); } catch(e) {} socket = null; }
+        createConversation();
+    }
+
+    // ---- Quick chips ----
+    window.sendQuickMsg = function(btn) {
+        inputEl.value = btn.textContent.replace(/^[^ ]+ /, '').trim();
+        // Remove emoji prefix from chip
+        inputEl.value = btn.textContent.slice(2).trim();
+        send();
+    };
+
+    // ---- Events ----
+    if (openBtn)  openBtn.addEventListener('click', function() {
+        if (chatWin.style.display === 'flex') closeChat(); else openChat();
+    });
+    if (closeBtn) closeBtn.addEventListener('click', closeChat);
+    if (clearBtn) clearBtn.addEventListener('click', clearChat);
+    if (sendBtn)  sendBtn.addEventListener('click', send);
+    if (inputEl) {
+        inputEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+        });
+    }
+
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+        var wrapper = document.getElementById('aiAssistantWrapper');
+        if (wrapper && chatWin.style.display === 'flex' && !wrapper.contains(e.target)) {
+            closeChat();
+        }
+    });
+    var chatWinEl = document.getElementById('aiAssistantChat');
+    if (chatWinEl) chatWinEl.addEventListener('click', function(e) { e.stopPropagation(); });
+
+})();
+</script>
+{% endif %}
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>

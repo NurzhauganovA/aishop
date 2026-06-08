@@ -5,6 +5,7 @@ from django.db.models import Q, Avg, Count, Sum
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
+from django.core.paginator import Paginator
 from django.views.generic import CreateView, UpdateView, DeleteView, DetailView  # Добавьте эти классы
 from apps.orders.models import Order  # Добавьте импорт Order
 
@@ -38,9 +39,10 @@ def product_list(request):
     
     # Фильтрация по категории
     category_slug = request.GET.get('category')
+    current_category = None
     if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=category)
+        current_category = get_object_or_404(Category, slug=category_slug)
+        products = products.filter(category=current_category)
     
     # Фильтрация по цене
     min_price = request.GET.get('min_price')
@@ -71,11 +73,18 @@ def product_list(request):
     elif sort_by == 'popularity':
         products = products.annotate(order_count=Count('order_items')).order_by('-order_count')
     
+    # Пагинация
+    paginator = Paginator(products, 12)
+    page_number = request.GET.get('page')
+    products_page = paginator.get_page(page_number)
+    
     context = {
         'categories': categories,
-        'products': products,
+        'products': products_page,
         'search_query': search_query,
         'sort_by': sort_by,
+        'category_slug': category_slug,
+        'current_category': current_category,
     }
     return render(request, 'products/product_list.html', context)
 
