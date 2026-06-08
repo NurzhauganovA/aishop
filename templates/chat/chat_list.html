@@ -1,119 +1,116 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Мои сообщения | Маркетплейс{% endblock %}
+{% block title %}Сообщения | SmartShop{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1 class="mb-4">Мои сообщения</h1>
-    
-    <div class="row">
-        <div class="col-md-3">
-            <!-- Боковое меню из личного кабинета -->
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Личный кабинет</h5>
-                </div>
-                <div class="list-group list-group-flush">
-                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">Мой профиль</a>
-                    <a href="{% url 'my_orders' %}" class="list-group-item list-group-item-action">Мои заказы</a>
-                    <a href="{% url 'address_list' %}" class="list-group-item list-group-item-action">Адреса доставки</a>
-                    <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">Список желаний</a>
-                    <a href="{% url 'chat_list' %}" class="list-group-item list-group-item-action active">Сообщения</a>
-                    <a href="{% url 'edit_profile' %}" class="list-group-item list-group-item-action">Редактировать профиль</a>
-                    {% if user.is_seller %}
-                        <a href="{% url 'seller_dashboard' %}" class="list-group-item list-group-item-action">Панель продавца</a>
-                    {% endif %}
+<div class="account-layout">
+
+    {% include '_account_sidebar.html' with active='chat' %}
+
+    <div>
+        <div class="account-card">
+            <div class="account-card__header">
+                <h1 class="account-card__title">
+                    <i class="bi bi-chat-dots" style="color:var(--primary)"></i>
+                    Мои сообщения
+                </h1>
+            </div>
+
+            {% if not buyer_conversations and not seller_conversations %}
+            <div class="account-card__body">
+                <div class="account-empty">
+                    <div class="account-empty__icon"><i class="bi bi-chat-square-text"></i></div>
+                    <h3>Нет сообщений</h3>
+                    <p>Чтобы начать диалог с продавцом, перейдите на страницу товара</p>
+                    <a href="{% url 'product_list' %}" class="btn btn-primary">
+                        <i class="bi bi-bag"></i> К покупкам
+                    </a>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-md-9">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Мои чаты</h5>
+            {% else %}
+            <div class="account-card__body--flush">
+
+                {% if buyer_conversations %}
+                <div style="padding:12px 24px 6px;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">
+                    Диалоги с продавцами
                 </div>
-                <div class="card-body">
-                    {% if not buyer_conversations and not seller_conversations %}
-                        <div class="text-center py-4">
-                            <i class="bi bi-chat-square-text" style="font-size: 3rem;"></i>
-                            <h5 class="mt-3">У вас пока нет сообщений</h5>
-                            <p class="text-muted">Чтобы начать диалог с продавцом, перейдите на страницу товара</p>
-                            <a href="{% url 'product_list' %}" class="btn btn-primary mt-2">Перейти к покупкам</a>
-                        </div>
-                    {% else %}
-                        <div class="list-group">
-                            {% if buyer_conversations %}
-                                <h6 class="mb-3">Ваши диалоги с продавцами:</h6>
-                                {% for conversation in buyer_conversations %}
-                                    <a href="{% url 'chat_detail' conversation.id %}" class="list-group-item list-group-item-action">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <h6 class="mb-1">{{ conversation.seller.username }}</h6>
-                                                {% if conversation.product %}
-                                                    <small class="text-muted">Товар: {{ conversation.product.name|truncatechars:30 }}</small>
-                                                {% endif %}
-                                                <p class="mb-1 small">
-                                                    {% if conversation.last_message %}
-                                                        {% if conversation.last_message.sender == request.user %}
-                                                            <span class="text-muted">Вы:</span>
-                                                        {% else %}
-                                                            <span class="fw-bold">{{ conversation.last_message.sender.username }}:</span>
-                                                        {% endif %}
-                                                        {{ conversation.last_message.content|truncatechars:50 }}
-                                                    {% endif %}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                {% if conversation.unread_count %}
-                                                    <span class="badge bg-danger rounded-pill">{{ conversation.unread_count }}</span>
-                                                {% endif %}
-                                                <small class="text-muted d-block">
-                                                    {{ conversation.last_message.created_at|date:"d.m.Y H:i" }}
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                {% endfor %}
-                            {% endif %}
-                            
-                            {% if seller_conversations %}
-                                <h6 class="mb-3 mt-4">Диалоги с вами как с продавцом:</h6>
-                                {% for conversation in seller_conversations %}
-                                    <a href="{% url 'chat_detail' conversation.id %}" class="list-group-item list-group-item-action">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <h6 class="mb-1">{{ conversation.buyer.username }}</h6>
-                                                {% if conversation.product %}
-                                                    <small class="text-muted">Товар: {{ conversation.product.name|truncatechars:30 }}</small>
-                                                {% endif %}
-                                                <p class="mb-1 small">
-                                                    {% if conversation.last_message %}
-                                                        {% if conversation.last_message.sender == request.user %}
-                                                            <span class="text-muted">Вы:</span>
-                                                        {% else %}
-                                                            <span class="fw-bold">{{ conversation.last_message.sender.username }}:</span>
-                                                        {% endif %}
-                                                        {{ conversation.last_message.content|truncatechars:50 }}
-                                                    {% endif %}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                {% if conversation.unread_count %}
-                                                    <span class="badge bg-danger rounded-pill">{{ conversation.unread_count }}</span>
-                                                {% endif %}
-                                                <small class="text-muted d-block">
-                                                    {{ conversation.last_message.created_at|date:"d.m.Y H:i" }}
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                {% endfor %}
+                {% for conv in buyer_conversations %}
+                <a href="{% url 'chat_detail' conv.id %}" class="chat-item">
+                    <div class="chat-item__avatar">{{ conv.seller.username|first|upper }}</div>
+                    <div class="chat-item__body">
+                        <div class="chat-item__name">
+                            {{ conv.seller.username }}
+                            {% if conv.unread_count %}
+                                <span class="chat-item__badge">{{ conv.unread_count }}</span>
                             {% endif %}
                         </div>
-                    {% endif %}
+                        {% if conv.product %}
+                            <div class="chat-item__product">
+                                <i class="bi bi-tag"></i> {{ conv.product.name|truncatechars:35 }}
+                            </div>
+                        {% endif %}
+                        {% if conv.last_message %}
+                        <div class="chat-item__preview">
+                            {% if conv.last_message.sender == request.user %}
+                                <span style="color:var(--text-muted)">Вы:</span>
+                            {% endif %}
+                            {{ conv.last_message.content|truncatechars:50 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="chat-item__meta">
+                        {% if conv.last_message %}
+                            <div class="chat-item__time">{{ conv.last_message.created_at|date:"d.m H:i" }}</div>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+                {% endif %}
+
+                {% if seller_conversations %}
+                <div style="padding:16px 24px 6px;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">
+                    Вы продавец — покупатели пишут вам
                 </div>
+                {% for conv in seller_conversations %}
+                <a href="{% url 'chat_detail' conv.id %}" class="chat-item">
+                    <div class="chat-item__avatar">{{ conv.buyer.username|first|upper }}</div>
+                    <div class="chat-item__body">
+                        <div class="chat-item__name">
+                            {{ conv.buyer.username }}
+                            {% if conv.unread_count %}
+                                <span class="chat-item__badge">{{ conv.unread_count }}</span>
+                            {% endif %}
+                        </div>
+                        {% if conv.product %}
+                            <div class="chat-item__product">
+                                <i class="bi bi-tag"></i> {{ conv.product.name|truncatechars:35 }}
+                            </div>
+                        {% endif %}
+                        {% if conv.last_message %}
+                        <div class="chat-item__preview">
+                            {% if conv.last_message.sender == request.user %}
+                                <span style="color:var(--text-muted)">Вы:</span>
+                            {% endif %}
+                            {{ conv.last_message.content|truncatechars:50 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="chat-item__meta">
+                        {% if conv.last_message %}
+                            <div class="chat-item__time">{{ conv.last_message.created_at|date:"d.m H:i" }}</div>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+                {% endif %}
+
             </div>
+            {% endif %}
         </div>
     </div>
+
+</div>
 </div>
 {% endblock %}

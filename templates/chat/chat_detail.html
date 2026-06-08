@@ -1,238 +1,165 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Чат | Маркетплейс{% endblock %}
+{% block title %}Чат с {{ interlocutor.username }} | SmartShop{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="row">
-        <!-- Боковое меню с списком чатов -->
-        <div class="col-md-3">
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Мои чаты</h5>
-                </div>
-                <div class="list-group list-group-flush">
-                    {% if not request.user.buyer_conversations.exists and not request.user.seller_conversations.exists %}
-                        <div class="list-group-item text-center">
-                            <p class="mb-0">Нет активных чатов</p>
-                        </div>
-                    {% else %}
-                        {% for conversation in request.user.buyer_conversations.all %}
-                            <a href="{% url 'chat_detail' conversation.id %}" class="list-group-item list-group-item-action {% if conversation.id == conversation.id %}active{% endif %}">
-                                <strong>{{ conversation.seller.username }}</strong>
-                                {% if conversation.product %}
-                                    <p class="mb-0 small text-muted">Товар: {{ conversation.product.name|truncatechars:20 }}</p>
-                                {% endif %}
-                            </a>
-                        {% endfor %}
-                        
-                        {% for conversation in request.user.seller_conversations.all %}
-                            <a href="{% url 'chat_detail' conversation.id %}" class="list-group-item list-group-item-action {% if conversation.id == conversation.id %}active{% endif %}">
-                                <strong>{{ conversation.buyer.username }}</strong>
-                                {% if conversation.product %}
-                                    <p class="mb-0 small text-muted">Товар: {{ conversation.product.name|truncatechars:20 }}</p>
-                                {% endif %}
-                            </a>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+<div class="account-layout">
+
+    <!-- Left: chat list sidebar -->
+    <aside class="account-sidebar">
+        <div class="account-sidebar__user">
+            <div class="account-sidebar__avatar">
+                <i class="bi bi-chat-dots" style="font-size:20px"></i>
+            </div>
+            <div class="account-sidebar__user-info">
+                <div class="account-sidebar__username">Сообщения</div>
+                <div class="account-sidebar__role">Все диалоги</div>
             </div>
         </div>
+        <nav class="account-sidebar__nav">
+            <a href="{% url 'chat_list' %}" class="account-sidebar__link">
+                <i class="bi bi-arrow-left"></i>
+                <span>Все сообщения</span>
+            </a>
+            <div class="account-sidebar__divider"></div>
 
-        <!-- Основной контент чата -->
-        <div class="col-md-9">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+            {% for conv in request.user.buyer_conversations.all %}
+            <a href="{% url 'chat_detail' conv.id %}"
+               class="account-sidebar__link {% if conv.id == conversation.id %}active{% endif %}">
+                <i class="bi bi-person"></i>
+                <span>{{ conv.seller.username|truncatechars:18 }}</span>
+            </a>
+            {% endfor %}
+
+            {% for conv in request.user.seller_conversations.all %}
+            <a href="{% url 'chat_detail' conv.id %}"
+               class="account-sidebar__link {% if conv.id == conversation.id %}active{% endif %}">
+                <i class="bi bi-person"></i>
+                <span>{{ conv.buyer.username|truncatechars:18 }}</span>
+            </a>
+            {% endfor %}
+        </nav>
+    </aside>
+
+    <!-- Right: conversation -->
+    <div>
+        <div class="account-card" style="overflow:hidden">
+            <!-- Header -->
+            <div class="account-card__header">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">
+                        {{ interlocutor.username|first|upper }}
+                    </div>
                     <div>
-                        <h5 class="mb-0">{{ interlocutor.username }}</h5>
+                        <div style="font-weight:700;font-size:15px">{{ interlocutor.username }}</div>
                         {% if conversation.product %}
-                            <small class="text-muted">Товар: <a href="{% url 'product_detail_by_id' conversation.product.id %}">{{ conversation.product.name }}</a></small>
+                            <div style="font-size:12px;color:var(--text-muted)">
+                                <i class="bi bi-tag"></i>
+                                <a href="{% url 'product_detail_by_id' conversation.product.id %}" style="color:var(--primary)">
+                                    {{ conversation.product.name|truncatechars:40 }}
+                                </a>
+                            </div>
                         {% endif %}
                     </div>
-                    <div>
-                        <span class="badge {% if interlocutor.is_online %}bg-success{% else %}bg-secondary{% endif %}">
-                            {% if interlocutor.is_online %}В сети{% else %}Не в сети{% endif %}
-                        </span>
+                </div>
+                <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:var(--radius-full);font-size:12px;font-weight:600;
+                    {% if interlocutor.is_online %}background:var(--success-light);color:#065F46{% else %}background:var(--border-light);color:var(--text-muted){% endif %}">
+                    <span style="width:7px;height:7px;border-radius:50%;background:{% if interlocutor.is_online %}var(--success){% else %}var(--text-muted){% endif %}"></span>
+                    {% if interlocutor.is_online %}В сети{% else %}Не в сети{% endif %}
+                </span>
+            </div>
+
+            <!-- Messages -->
+            <div class="chat-messages" id="chatContainer">
+                <div id="chatMessages">
+                    {% for message in messages %}
+                    <div class="msg-bubble {% if message.sender == request.user %}msg-bubble--sent{% else %}msg-bubble--recv{% endif %}"
+                         id="message-{{ message.id }}">
+                        <div class="msg-bubble__content">{{ message.content }}</div>
+                        <div class="msg-bubble__meta">{{ message.created_at|date:"d.m.Y · H:i" }}</div>
                     </div>
-                </div>
-                <div class="card-body" style="height: 400px; overflow-y: auto" id="chatContainer">
-                    <div id="chatMessages">
-                        {% for message in messages %}
-                            <div class="message {% if message.sender == request.user %}message-sent{% else %}message-received{% endif %}" id="message-{{ message.id }}">
-                                <div class="message-content">
-                                    <div class="message-header">
-                                        <strong>{{ message.sender.username }}</strong>
-                                    </div>
-                                    <div class="message-text">{{ message.content }}</div>
-                                    <div class="message-time small text-muted">
-                                        {{ message.created_at|date:"d.m.Y H:i" }}
-                                    </div>
-                                </div>
-                            </div>
-                        {% empty %}
-                            <div class="text-center text-muted my-4">
-                                <p>Начните диалог, отправив сообщение</p>
-                            </div>
-                        {% endfor %}
+                    {% empty %}
+                    <div style="text-align:center;color:var(--text-muted);padding:40px 20px;font-size:14px">
+                        <i class="bi bi-chat" style="font-size:32px;display:block;margin-bottom:10px;opacity:.3"></i>
+                        Начните диалог, отправив сообщение
                     </div>
+                    {% endfor %}
                 </div>
-                <div class="card-footer">
-                    <form id="chatForm" method="post">
-                        {% csrf_token %}
-                        <div class="input-group">
-                            <input type="text" id="messageInput" class="form-control" placeholder="Введите сообщение..." required>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-send"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="chat-input-area">
+                <form id="chatForm" style="display:contents">
+                    {% csrf_token %}
+                    <input type="text" id="messageInput" class="form-control"
+                           placeholder="Написать сообщение…" autocomplete="off">
+                    <button type="submit" class="btn-send" title="Отправить">
+                        <i class="bi bi-send-fill" style="font-size:15px"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </div>
+
 </div>
+</div>
+{% endblock %}
 
-<style>
-    #chatContainer {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    #chatMessages {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .message {
-        margin-bottom: 15px;
-        max-width: 80%;
-    }
-    
-    .message-sent {
-        align-self: flex-end;
-    }
-    
-    .message-received {
-        align-self: flex-start;
-    }
-    
-    .message-content {
-        padding: 10px;
-        border-radius: 8px;
-        background-color: #f1f1f1;
-    }
-    
-    .message-sent .message-content {
-        background-color: #d1ecf1;
-    }
-    
-    .message-header {
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    
-    .message-time {
-        margin-top: 5px;
-        text-align: right;
-        font-size: 0.8em;
-        color: #6c757d;
-    }
-    
-    /* Скрываем системные сообщения */
-    .alert.alert- {
-        display: none !important;
-    }
-</style>
-
+{% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const chatContainer = document.getElementById('chatContainer');
-        const chatMessages = document.getElementById('chatMessages');
-        const chatForm = document.getElementById('chatForm');
-        const messageInput = document.getElementById('messageInput');
-        
-        // Скрываем системные сообщения при загрузке страницы
-        document.querySelectorAll('.alert.alert-').forEach(function(element) {
-            element.style.display = 'none';
-        });
-        
-        // Прокрутка до последнего сообщения
-        function scrollToBottom() {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-        
-        // Прокручиваем при загрузке страницы
+document.addEventListener('DOMContentLoaded', function () {
+    const chatContainer  = document.getElementById('chatContainer');
+    const chatMessages   = document.getElementById('chatMessages');
+    const chatForm       = document.getElementById('chatForm');
+    const messageInput   = document.getElementById('messageInput');
+    const receivedIds    = new Set();
+
+    function scrollToBottom() {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    scrollToBottom();
+
+    const wsScheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const chatSocket = new WebSocket(wsScheme + window.location.host + '/ws/chat/{{ conversation.id }}/');
+
+    chatSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        if (receivedIds.has(data.message_id)) return;
+        receivedIds.add(data.message_id);
+
+        const isSent = (data.sender_id == {{ request.user.id }});
+        const el = document.createElement('div');
+        el.className = 'msg-bubble ' + (isSent ? 'msg-bubble--sent' : 'msg-bubble--recv');
+        el.id = 'message-' + data.message_id;
+        el.innerHTML = `
+            <div class="msg-bubble__content">${escapeHtml(data.message)}</div>
+            <div class="msg-bubble__meta">${new Date().toLocaleString('ru',{hour:'2-digit',minute:'2-digit'})}</div>
+        `;
+        chatMessages.appendChild(el);
         scrollToBottom();
-        
-        // Отслеживаем уже полученные сообщения
-        const receivedMessageIds = new Set();
-        
-        // Инициализация WebSocket
-        const wsScheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const chatSocket = new WebSocket(
-            wsScheme + window.location.host + '/ws/chat/{{ conversation.id }}/'
-        );
-        
-        chatSocket.onopen = function(e) {
-            console.log('WebSocket соединение установлено');
-        };
-        
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            
-            // Проверяем, не получали ли мы уже это сообщение
-            if (receivedMessageIds.has(data.message_id)) {
-                return; // Пропускаем дублирующиеся сообщения
-            }
-            
-            // Добавляем ID сообщения в список полученных
-            receivedMessageIds.add(data.message_id);
-            
-            // Создаем новое сообщение в чате
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message ' + (data.sender_id == {{ request.user.id }} ? 'message-sent' : 'message-received');
-            messageElement.id = `message-${data.message_id}`;
-            
-            messageElement.innerHTML = `
-                <div class="message-content">
-                    <div class="message-header">
-                        <strong>${data.sender_username}</strong>
-                    </div>
-                    <div class="message-text">${data.message}</div>
-                    <div class="message-time small text-muted">
-                        ${new Date().toLocaleString('ru', {hour: '2-digit', minute: '2-digit'})}
-                    </div>
-                </div>
-            `;
-            
-            chatMessages.appendChild(messageElement);
-            scrollToBottom();
-        };
-        
-        chatSocket.onclose = function(e) {
-            console.log('WebSocket соединение закрыто');
-            
-            // Добавляем уведомление пользователю
-            const messageElement = document.createElement('div');
-            messageElement.className = 'text-center text-muted my-2';
-            messageElement.innerHTML = '<p>Соединение потеряно. Обновите страницу.</p>';
-            
-            chatMessages.appendChild(messageElement);
-        };
-        
-        chatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const message = messageInput.value.trim();
-            if (message && chatSocket.readyState === WebSocket.OPEN) {
-                chatSocket.send(JSON.stringify({
-                    'message': message,
-                    'type': 'text'
-                }));
-                
-                messageInput.value = '';
-            }
-        });
+    };
+
+    chatSocket.onclose = function () {
+        const el = document.createElement('div');
+        el.style.cssText = 'text-align:center;color:var(--text-muted);font-size:13px;padding:10px';
+        el.textContent = 'Соединение потеряно. Обновите страницу.';
+        chatMessages.appendChild(el);
+    };
+
+    chatForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const msg = messageInput.value.trim();
+        if (msg && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ message: msg, type: 'text' }));
+            messageInput.value = '';
+        }
     });
+
+    function escapeHtml(text) {
+        return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+});
 </script>
 {% endblock %}

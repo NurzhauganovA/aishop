@@ -1,0 +1,85 @@
+{% load static %}
+{# Usage: {% include '_account_sidebar.html' with active='wishlist' %}                          #}
+{# active values: profile, orders, addresses, wishlist, notifications, notif_settings,         #}
+{#                chat, edit_profile, change_password, seller                                   #}
+
+<aside class="account-sidebar">
+    <!-- User card -->
+    <div class="account-sidebar__user">
+        <div class="account-sidebar__avatar">
+            {% if user.profile.avatar %}
+                <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
+            {% else %}
+                <span>{{ user.username|first|upper }}</span>
+            {% endif %}
+        </div>
+        <div class="account-sidebar__user-info">
+            <div class="account-sidebar__username">{{ user.get_full_name|default:user.username }}</div>
+            <div class="account-sidebar__role">
+                {% if user.role == 'admin' %}Администратор
+                {% elif user.role == 'seller' %}Продавец
+                {% else %}Покупатель{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <nav class="account-sidebar__nav">
+        <a href="{% url 'profile' %}"
+           class="account-sidebar__link {% if active == 'profile' %}active{% endif %}">
+            <i class="bi bi-person-circle"></i>
+            <span>Мой профиль</span>
+        </a>
+        <a href="{% url 'my_orders' %}"
+           class="account-sidebar__link {% if active == 'orders' %}active{% endif %}">
+            <i class="bi bi-bag-check"></i>
+            <span>Мои заказы</span>
+        </a>
+        <a href="{% url 'address_list' %}"
+           class="account-sidebar__link {% if active == 'addresses' %}active{% endif %}">
+            <i class="bi bi-geo-alt"></i>
+            <span>Адреса доставки</span>
+        </a>
+        <a href="{% url 'wishlist' %}"
+           class="account-sidebar__link {% if active == 'wishlist' %}active{% endif %}">
+            <i class="bi bi-heart"></i>
+            <span>Список желаний</span>
+        </a>
+        <a href="{% url 'chat_list' %}"
+           class="account-sidebar__link {% if active == 'chat' %}active{% endif %}">
+            <i class="bi bi-chat-dots"></i>
+            <span>Сообщения</span>
+        </a>
+        <a href="{% url 'notification_list' %}"
+           class="account-sidebar__link {% if active == 'notifications' %}active{% endif %}">
+            <i class="bi bi-bell"></i>
+            <span>Уведомления</span>
+        </a>
+
+        <div class="account-sidebar__divider"></div>
+
+        <a href="{% url 'edit_profile' %}"
+           class="account-sidebar__link {% if active == 'edit_profile' %}active{% endif %}">
+            <i class="bi bi-pencil-square"></i>
+            <span>Редактировать профиль</span>
+        </a>
+        <a href="{% url 'change_password' %}"
+           class="account-sidebar__link {% if active == 'change_password' %}active{% endif %}">
+            <i class="bi bi-shield-lock"></i>
+            <span>Изменить пароль</span>
+        </a>
+        <a href="{% url 'notification_settings' %}"
+           class="account-sidebar__link {% if active == 'notif_settings' %}active{% endif %}">
+            <i class="bi bi-sliders"></i>
+            <span>Настройки уведомлений</span>
+        </a>
+
+        {% if user.is_seller %}
+        <div class="account-sidebar__divider"></div>
+        <a href="{% url 'seller_dashboard' %}"
+           class="account-sidebar__link account-sidebar__link--seller {% if active == 'seller' %}active{% endif %}">
+            <i class="bi bi-shop"></i>
+            <span>Панель продавца</span>
+        </a>
+        {% endif %}
+    </nav>
+</aside>
